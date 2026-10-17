@@ -1,0 +1,1227 @@
+{
+  "_comment": "Test vectors for the protocol, version 0. Keys are throwaway, derived as SHA-256 of the phrases below; signatures are BIP-340 with aux_rand = 32 zero bytes, so these vectors are exactly reproducible. For each valid vector: strip sig, serialize per the canonical rules, confirm the bytes match 'canonical', compute the tagged message hash SHA256(SHA256(tag) || SHA256(tag) || bytes) with tag 'ditta/v0/' + message_type, confirm it matches 'sha256', and verify 'sig' over it against 'pubkey'. Invalid vectors are raw JSON text a conformant receiver MUST reject with the code in 'expect', or with one of them where 'expect' lists several.",
+  "keys": {
+    "indexer": {
+      "phrase": "protocol test vector key: indexer",
+      "seckey": "f1c4d22b1f9b4cf3362ab0f245b092537eebbea0c8f48d61a106c5e8e8dc89ce",
+      "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8"
+    },
+    "broker": {
+      "phrase": "protocol test vector key: broker",
+      "seckey": "371ceb18f5e01877e33489d2c48398114339ed7f77e882acddaed063b313a995",
+      "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b"
+    },
+    "peer": {
+      "phrase": "protocol test vector key: peer",
+      "seckey": "c036d439e1b33f689ad365750397e032859a499c202fff94ae17ac38b260cea2",
+      "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c"
+    }
+  },
+  "valid": [
+    {
+      "name": "announcement",
+      "description": "The Appendix A announcement. Nested objects and arrays exercise key sorting at every level while array order is preserved.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "protocol_version": 0,
+        "endpoint": "https://index.example.net",
+        "timestamp": 1787000000,
+        "roles": [
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_query",
+            "price": 2000
+          },
+          {
+            "type": "per_batch",
+            "price": 150000,
+            "query_count": 100
+          }
+        ],
+        "corpus": {
+          "document_count": 1204000,
+          "term_count": 8300000,
+          "updated": 1786990000,
+          "languages": [
+            "en",
+            "fr"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "126a95b8fd1cd18b0d77babcbc0689cc4d128c60b7a64ca2e147eb20dbee95ff948d6229f31f9b3f64310e14ddadaff05a9b526cc76ce83b21478fe3347d4a57"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\",\"fr\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":2000,\"type\":\"per_query\"},{\"price\":150000,\"query_count\":100,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"indexer\"],\"timestamp\":1787000000}",
+      "sha256": "3a752676913d5f54ab2affd2377f9706df164db1fc843f552816fbaa7d05d6e9",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_unknown_field",
+      "description": "Announcement carrying a field this document does not define. A receiver MUST ignore the unknown field for routing but MUST include it in the canonical serialization: the signature covers every field except sig, known or not. Discarding it before verifying breaks the signature.",
+      "message": {
+        "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+        "protocol_version": 0,
+        "endpoint": "http://verylongonionaddressgoeshere1234567890abcdefghijklmnop.onion",
+        "timestamp": 1787000100,
+        "roles": [
+          "broker"
+        ],
+        "pricing": [],
+        "zzz_future_field": {
+          "nested": [
+            "values",
+            1,
+            2
+          ]
+        },
+        "sig": "a456f834def217a8b8a0da04ee6d0396aa943399cadb7e03d07c22bcff971855b1946dad06198abb1c45c4307090a7543f0ab0a984c130a0c1aa1e45febfc562"
+      },
+      "canonical": "{\"endpoint\":\"http://verylongonionaddressgoeshere1234567890abcdefghijklmnop.onion\",\"pricing\":[],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"timestamp\":1787000100,\"zzz_future_field\":{\"nested\":[\"values\",1,2]}}",
+      "sha256": "61f24c3fdf49a588568c92f96475c86468cee56111f15c32c78c0a1138faebc8",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_bare_ip",
+      "description": "Announcement whose endpoint host is a bare IP address with an explicit port. Domains, IPs, and onion addresses are indistinguishable to the protocol.",
+      "message": {
+        "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+        "protocol_version": 0,
+        "endpoint": "https://203.0.113.9:8443",
+        "timestamp": 1786900000,
+        "roles": [
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_result",
+            "price": 250
+          }
+        ],
+        "corpus": {
+          "document_count": 40100,
+          "term_count": 610000,
+          "updated": 1786890000,
+          "languages": [
+            "en"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "ca948fbd0f71eeb091640150ae37ddb8902357587a37bae9c74fb9d260a754992c2d4f14125afe7164c261492e540e6c92a63fa132457b4ab4d010cfef796486"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":40100,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":610000,\"updated\":1786890000},\"endpoint\":\"https://203.0.113.9:8443\",\"pricing\":[{\"price\":250,\"type\":\"per_result\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"timestamp\":1786900000}",
+      "sha256": "988da0067889ebc807058bc40f78dee03b189654cb2356561782d251ebc1bf3c",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_batch_boundary",
+      "description": "Announcement whose per_batch option carries a query count of exactly two, the smallest permitted value. A count of one would make the batch a per_query option wearing the wrong type.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "protocol_version": 0,
+        "endpoint": "https://index.example.net",
+        "timestamp": 1787000050,
+        "roles": [
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_batch",
+            "price": 3600,
+            "query_count": 2
+          }
+        ],
+        "corpus": {
+          "document_count": 1204000,
+          "term_count": 8300000,
+          "updated": 1786990000,
+          "languages": [
+            "en",
+            "fr"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "732f36fc1596b076e031c2dcc5acdc82801f7e1b5f20bf3af5c00e94181b9ccfac0d684b23807fd2ae16c2a4361ae4d3079f37b1808996c768fe086229c6cb45"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\",\"fr\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":3600,\"query_count\":2,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"indexer\"],\"timestamp\":1787000050}",
+      "sha256": "e0bd7867d8c30ce72c012eaaf1117abccf4048457696ff97890144ffec9d8d2f",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_nonsense_language_tag",
+      "description": "Announcement whose languages array carries a string that is not a BCP-47 tag. Language tags are advisory routing input; a receiver MUST NOT reject an announcement for the form of a tag.",
+      "message": {
+        "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+        "protocol_version": 0,
+        "endpoint": "https://198.51.100.7",
+        "timestamp": 1787000500,
+        "roles": [
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_query",
+            "price": 100
+          }
+        ],
+        "corpus": {
+          "document_count": 10,
+          "term_count": 100,
+          "updated": 1787000000,
+          "languages": [
+            "not a language tag",
+            "en"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "d61b05303434f3c3423d03bc7a128309aeb89a016b27f0f4c50d945e8a68af8a928803837e9ec5093efe6b6740f654f6037c8ca54f3e8319f060222e289bd9ea"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":10,\"languages\":[\"not a language tag\",\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":100,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"timestamp\":1787000500}",
+      "sha256": "314469684a60c515eea13d2f868480b0a806dc6a32ed0c4e41dbbb25aea3392f",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_key_order_non_ascii",
+      "description": "Announcement with unknown top-level fields whose keys are U+FFFD and U+1F50D. Rule 3 sorts by UTF-8 byte value, which equals code point order, so the U+FFFD key precedes the U+1F50D key. A serializer sorting by UTF-16 code units - as RFC 8785 (JCS) does - puts the surrogate-pair key first, producing different canonical bytes and a signature that does not verify.",
+      "message": {
+        "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+        "protocol_version": 0,
+        "endpoint": "https://198.51.100.7",
+        "timestamp": 1787000400,
+        "roles": [
+          "broker"
+        ],
+        "pricing": [],
+        "�": "sorts first in UTF-8 byte order",
+        "🔍": "sorts first in UTF-16 code-unit order",
+        "sig": "0017deb9bf19723ebb3871c781b8c8b01e438e0bf89d5aaa1d6a9297c2c88d378170da2ed7fe96f512f7faf5c6177a1561eed7904382da8bbfd8fd069a8bd6f3"
+      },
+      "canonical": "{\"endpoint\":\"https://198.51.100.7\",\"pricing\":[],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"timestamp\":1787000400,\"�\":\"sorts first in UTF-8 byte order\",\"🔍\":\"sorts first in UTF-16 code-unit order\"}",
+      "sha256": "91713fb18c63578bee5c86f23a42dc87520da0fe074395eb893b28a61dd151ed",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "peer_list_request",
+      "description": "Peer list request. MUST be signed.",
+      "message": {
+        "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b",
+        "request_id": "a41e",
+        "max_peers": 50,
+        "sig": "a763a205324f4d34bf3873366603ed6422f8f7b86f8196d3bd8d4b2411535e5b75e1837ff600231505ca954fdb4678545a72cac769150ff218ffe9d2bd4258a2"
+      },
+      "canonical": "{\"max_peers\":50,\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"a41e\"}",
+      "sha256": "ef9065488b071aeb0ac4f3656065c6b31f6c0ffcf8aa03eb98419378bb9edc24",
+      "signed": true,
+      "message_type": "peer_list_request"
+    },
+    {
+      "name": "peer_list_response_unsigned_envelope",
+      "description": "Peer list response without an envelope signature, which is permitted. The embedded announcement carries its own sig field, which stays inside the envelope's canonical serialization: rule 1 excludes only the envelope's own sig. Each embedded announcement must verify independently.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "a41e",
+        "peers": [
+          {
+            "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+            "protocol_version": 0,
+            "endpoint": "https://203.0.113.9:8443",
+            "timestamp": 1786900000,
+            "roles": [
+              "indexer"
+            ],
+            "pricing": [
+              {
+                "type": "per_result",
+                "price": 250
+              }
+            ],
+            "corpus": {
+              "document_count": 40100,
+              "term_count": 610000,
+              "updated": 1786890000,
+              "languages": [
+                "en"
+              ],
+              "statistics_versions": [
+                0
+              ]
+            },
+            "sig": "ca948fbd0f71eeb091640150ae37ddb8902357587a37bae9c74fb9d260a754992c2d4f14125afe7164c261492e540e6c92a63fa132457b4ab4d010cfef796486"
+          }
+        ]
+      },
+      "canonical": "{\"peers\":[{\"corpus\":{\"document_count\":40100,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":610000,\"updated\":1786890000},\"endpoint\":\"https://203.0.113.9:8443\",\"pricing\":[{\"price\":250,\"type\":\"per_result\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"ca948fbd0f71eeb091640150ae37ddb8902357587a37bae9c74fb9d260a754992c2d4f14125afe7164c261492e540e6c92a63fa132457b4ab4d010cfef796486\",\"timestamp\":1786900000}],\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"a41e\"}",
+      "sha256": "d493853d978dce0601df9ef18a65d18e10bbb778dbc914773e949a9135f71209",
+      "signed": false,
+      "message_type": "peer_list_response"
+    },
+    {
+      "name": "peer_list_response_signed_envelope",
+      "description": "The same peer list response with the optional envelope signature.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "a41e",
+        "peers": [
+          {
+            "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+            "protocol_version": 0,
+            "endpoint": "https://203.0.113.9:8443",
+            "timestamp": 1786900000,
+            "roles": [
+              "indexer"
+            ],
+            "pricing": [
+              {
+                "type": "per_result",
+                "price": 250
+              }
+            ],
+            "corpus": {
+              "document_count": 40100,
+              "term_count": 610000,
+              "updated": 1786890000,
+              "languages": [
+                "en"
+              ],
+              "statistics_versions": [
+                0
+              ]
+            },
+            "sig": "ca948fbd0f71eeb091640150ae37ddb8902357587a37bae9c74fb9d260a754992c2d4f14125afe7164c261492e540e6c92a63fa132457b4ab4d010cfef796486"
+          }
+        ],
+        "sig": "08459483b6ad91c6c5cc69678490d0d8f2f9743dc9e8e4fc2902d65ef5d8ec74cd4cea7f8746430a90d5eb996b54764f66072d380cd71c906455bc8db27ee364"
+      },
+      "canonical": "{\"peers\":[{\"corpus\":{\"document_count\":40100,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":610000,\"updated\":1786890000},\"endpoint\":\"https://203.0.113.9:8443\",\"pricing\":[{\"price\":250,\"type\":\"per_result\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"ca948fbd0f71eeb091640150ae37ddb8902357587a37bae9c74fb9d260a754992c2d4f14125afe7164c261492e540e6c92a63fa132457b4ab4d010cfef796486\",\"timestamp\":1786900000}],\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"a41e\"}",
+      "sha256": "d493853d978dce0601df9ef18a65d18e10bbb778dbc914773e949a9135f71209",
+      "signed": true,
+      "message_type": "peer_list_response"
+    },
+    {
+      "name": "corpus_statistics_request_no_max",
+      "description": "Corpus statistics request with the optional max term count absent. Rule 2: absent fields are omitted entirely; this canonical form has no max_terms key.",
+      "message": {
+        "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b",
+        "request_id": "3f8a12cc",
+        "statistics_version": 0,
+        "sig": "f55b3b94b7f1b1311162231e4c760a7c505b6f4e320f71819eee181e3a397554b0805ca9b35993ebd63e0d7faf3b3c8445f3b91b3a9e065bb38423d77c006cd6"
+      },
+      "canonical": "{\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"3f8a12cc\",\"statistics_version\":0}",
+      "sha256": "870e979f1afb20004df0f84defbfd9459ce8c03a81341a56caa2fda24cd6f16c",
+      "signed": true,
+      "message_type": "corpus_statistics_request"
+    },
+    {
+      "name": "corpus_statistics_response_boundaries",
+      "description": "Corpus statistics response with boundary integers: a zero freshness marker and a document count of 2^53 - 1, the largest permitted integer. Rule 7: zero is emitted as 0; the maximum is emitted without exponent.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "3f8a12cc",
+        "statistics_version": 0,
+        "updated": 1786990000,
+        "terms": [
+          {
+            "term": "mempool",
+            "document_count": 9007199254740991,
+            "newest": 1786950000
+          },
+          {
+            "term": "genesis",
+            "document_count": 1,
+            "newest": 0
+          }
+        ],
+        "sig": "005c5c9e7b9fe40e3a2883d2082f32d74cf41545e6bc47f2f991650f485ca6d9564e6998f019bf5f6c0c032b82d86517bb65ccd875904b579a19a7f2447a9c09"
+      },
+      "canonical": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"3f8a12cc\",\"statistics_version\":0,\"terms\":[{\"document_count\":9007199254740991,\"newest\":1786950000,\"term\":\"mempool\"},{\"document_count\":1,\"newest\":0,\"term\":\"genesis\"}],\"updated\":1786990000}",
+      "sha256": "7fed3ed563cbf7cebc0f4c49bc10fc9ede7e04b728703f1b4c802faa2abc6a6e",
+      "signed": true,
+      "message_type": "corpus_statistics_response"
+    },
+    {
+      "name": "query_request_signed",
+      "description": "Signed query request.",
+      "message": {
+        "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b",
+        "query": "lightning channel jamming mitigation",
+        "max_results": 8,
+        "request_id": "q-7719",
+        "pricing_type": "per_result",
+        "max_price": 2000,
+        "sig": "b73ccb00cadd757ae9614513dee97264db19b8d55c708db71de1b174738f589e0c5c47945218acf6b1a1e834d5022a0a1aee4e1b07b463ddeee918b847c0feec"
+      },
+      "canonical": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_result\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"lightning channel jamming mitigation\",\"request_id\":\"q-7719\"}",
+      "sha256": "7263f568a45504ea8b0d1d13bd91a3e8008b6b244432f096152b0c5830b36320",
+      "signed": true,
+      "message_type": "query_request"
+    },
+    {
+      "name": "query_request_per_batch_signed",
+      "description": "Signed per_batch query request. A per_batch query MUST be signed so the indexer can bind the batch macaroon to the requester's key, and MUST carry a query count naming the batch option it is buying.",
+      "message": {
+        "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b",
+        "query": "taproot annex",
+        "max_results": 5,
+        "request_id": "q-7730",
+        "pricing_type": "per_batch",
+        "query_count": 100,
+        "max_price": 50000,
+        "sig": "0ddf83ac1e549e144bc48b6cc9590d2a7513cbf7c5b79a62269b348809a90f20df5c8bdeaa3aa67793a20a55dfe0edac5d1aeb56c50ac7f22d86eb796960f2b4"
+      },
+      "canonical": "{\"max_price\":50000,\"max_results\":5,\"pricing_type\":\"per_batch\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"taproot annex\",\"query_count\":100,\"request_id\":\"q-7730\"}",
+      "sha256": "5c9b703e04ea0e9cfc0b3024d7b45918f01787ef1606e15cdbe30caab89568fa",
+      "signed": true,
+      "message_type": "query_request"
+    },
+    {
+      "name": "query_request_anonymous",
+      "description": "Anonymous query request: no pubkey, no sig. Unsigned messages still have exactly one canonical serialization; the hash is shown although nothing signs it.",
+      "message": {
+        "query": "bc1q address reuse",
+        "max_results": 3,
+        "request_id": "q-7720",
+        "pricing_type": "per_query",
+        "max_price": 2000
+      },
+      "canonical": "{\"max_price\":2000,\"max_results\":3,\"pricing_type\":\"per_query\",\"query\":\"bc1q address reuse\",\"request_id\":\"q-7720\"}",
+      "sha256": "c86ff2aa2979428554495039f9af198789dc7007d824e1abf7f5e1d8c4ad641c",
+      "signed": false,
+      "message_type": "query_request"
+    },
+    {
+      "name": "query_request_string_escapes",
+      "description": "Query string exercising every escaping rule at once: a double quote, a backslash, a forward slash (rule 9: never escaped), a tab and newline (rule 8: two-character forms), U+0001 (rule 8: lowercase \\u00xx), an accented character and an emoji (rule 10: literal UTF-8, never \\u). The request identifier is 64 UTF-8 bytes exactly: 21 three-byte characters and one ASCII byte.",
+      "message": {
+        "pubkey": "88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b",
+        "query": "he said \"p\\q\" a/b\tx\ny\u0001 café 🔍",
+        "max_results": 1,
+        "request_id": "€€€€€€€€€€€€€€€€€€€€€x",
+        "pricing_type": "per_query",
+        "max_price": 9007199254740991,
+        "sig": "f1469a5bb50466a8d1c098d2e90b7e1cceb12773d0538ba9e5189ce41ffde0488506e31b270563454653924d7305ccf5975cf6e0f240b78b3814732cafe02bf4"
+      },
+      "canonical": "{\"max_price\":9007199254740991,\"max_results\":1,\"pricing_type\":\"per_query\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"he said \\\"p\\\\q\\\" a/b\\tx\\ny\\u0001 café 🔍\",\"request_id\":\"€€€€€€€€€€€€€€€€€€€€€x\"}",
+      "sha256": "ead656bdff6239ae92a58a28d0095230d75763bf1007c9edb6fa776944a261fc",
+      "signed": true,
+      "message_type": "query_request"
+    },
+    {
+      "name": "query_request_del_character",
+      "description": "Query containing a literal U+007F. Rule 8's escaping stops at U+001F; U+007F is emitted literally, never as an escape.",
+      "message": {
+        "query": "up to and no further",
+        "max_results": 2,
+        "request_id": "q-7721",
+        "pricing_type": "per_query",
+        "max_price": 1000
+      },
+      "canonical": "{\"max_price\":1000,\"max_results\":2,\"pricing_type\":\"per_query\",\"query\":\"up to and no further\",\"request_id\":\"q-7721\"}",
+      "sha256": "eeb871d2aa25835e1cda86aec095e319f53f133cd43529ce15ad89452880965c",
+      "signed": false,
+      "message_type": "query_request"
+    },
+    {
+      "name": "result_set_signed",
+      "description": "Signed result set. Ordering is positional; there is no score field.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7719",
+        "results": [
+          {
+            "id": "doc-118824",
+            "url": "https://example.org/jamming-paper",
+            "title": "Channel jamming: a survey",
+            "snippet": "Jamming attacks occupy channel capacity without paying…"
+          },
+          {
+            "id": "doc-90211",
+            "url": "https://example.org/café-post",
+            "title": "Réponse: mitigations — 対策",
+            "snippet": "a/b testing of upfront fees"
+          }
+        ],
+        "sig": "0ed6db4a7bb0cf0a66a51ed6e864def5b9aeb5bd4df0770b44f489227bfc4274bdd4b5a69073370abc86800b612eb64458c02b0568dd7c6dd8f275ff616cf6d7"
+      },
+      "canonical": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7719\",\"results\":[{\"id\":\"doc-118824\",\"snippet\":\"Jamming attacks occupy channel capacity without paying…\",\"title\":\"Channel jamming: a survey\",\"url\":\"https://example.org/jamming-paper\"},{\"id\":\"doc-90211\",\"snippet\":\"a/b testing of upfront fees\",\"title\":\"Réponse: mitigations — 対策\",\"url\":\"https://example.org/café-post\"}]}",
+      "sha256": "172cac1926bbea291bbd4fda9c22dd7bbded026a3c1a4e603dd6fd9a2fc8f21c",
+      "signed": true,
+      "message_type": "result_set"
+    },
+    {
+      "name": "result_set_empty",
+      "description": "A paid response containing zero results, which is conformant.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7720",
+        "results": [],
+        "sig": "85ffb85d72b2dc7a20b8be652143bfcd988bf7e2a1be623672e35e82a27309da3ac6687723b9e774e124c1d0b9e00fe3371cb5760f55f823dde97ce30a0721a1"
+      },
+      "canonical": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7720\",\"results\":[]}",
+      "sha256": "1b7d516407d3e894571ae90eeb3656ebe8b03156f74fa636da589dd532e7658e",
+      "signed": true,
+      "message_type": "result_set"
+    },
+    {
+      "name": "error_signed",
+      "description": "Signed error. The pubkey identifies the responder, never the requester.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7719",
+        "code": "rate_limited",
+        "message": "try again in a minute",
+        "sig": "5096aa8b8e4424581e21578c8bae19230783c8a910ad3daca725a584958ddb931d7fff62c1473dc09b46b170d7e16c37b6582ac08308b1872fb66f83705a1094"
+      },
+      "canonical": "{\"code\":\"rate_limited\",\"message\":\"try again in a minute\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7719\"}",
+      "sha256": "864c6a92c8172b5b951f92571e7b170a9f6dfa4ab8edeb5ef0a28edb878cc7b0",
+      "signed": true,
+      "message_type": "error"
+    },
+    {
+      "name": "error_unsigned_no_request_id",
+      "description": "Unsigned error with no request identifier, as sent when the failed request was too malformed to carry one. The pubkey is REQUIRED even unsigned.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "code": "malformed"
+      },
+      "canonical": "{\"code\":\"malformed\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\"}",
+      "sha256": "b7a54f0bac8cb1d8d32bfb81f9c3530bc9a1182a76c7116e9794927d7b52f30c",
+      "signed": false,
+      "message_type": "error"
+    },
+    {
+      "name": "peer_list_response_embedded_unknown_field",
+      "description": "Peer list response whose embedded announcement carries an unknown field. Embedded announcements are the one nested exception to the closed-shape rule: each follows announcement rules, including tolerance, because it is an announcement.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "b917",
+        "peers": [
+          {
+            "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+            "protocol_version": 0,
+            "endpoint": "https://198.51.100.7",
+            "timestamp": 1787000300,
+            "roles": [
+              "broker"
+            ],
+            "pricing": [],
+            "zzz_hint": "future data",
+            "sig": "134ae5feb16bd67cc41d1bdcd2206ceedff111ab811cc78cdfa75a9c3c463739e995ec9d32eb002b63cc7d339eb32eee1e1c20209cad2ca7e6ee7d9e05f87ac4"
+          }
+        ]
+      },
+      "canonical": "{\"peers\":[{\"endpoint\":\"https://198.51.100.7\",\"pricing\":[],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"sig\":\"134ae5feb16bd67cc41d1bdcd2206ceedff111ab811cc78cdfa75a9c3c463739e995ec9d32eb002b63cc7d339eb32eee1e1c20209cad2ca7e6ee7d9e05f87ac4\",\"timestamp\":1787000300,\"zzz_hint\":\"future data\"}],\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"b917\"}",
+      "sha256": "9deba890efa76f92a95af9927318bdf1b3d0ffb444f0df04327f046b4ce9c6cf",
+      "signed": false,
+      "message_type": "peer_list_response"
+    },
+    {
+      "name": "error_unknown_code",
+      "description": "Error carrying a code outside the defined list. The code list is soft-closed: a receiver MUST treat an unrecognized code as 'rejected' and SHOULD log it. The message itself is conformant and MUST NOT be rejected.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7719",
+        "code": "quota_exhausted",
+        "message": "monthly credit spent"
+      },
+      "canonical": "{\"code\":\"quota_exhausted\",\"message\":\"monthly credit spent\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7719\"}",
+      "sha256": "6f01810a9c9f563338cb7784f23b5d7c8648f41198688dcc996fd5a02e3d6540",
+      "signed": false,
+      "message_type": "error"
+    },
+    {
+      "name": "payment_challenge_signed",
+      "description": "Signed payment challenge: the body of a 402 response. The invoice and macaroon are opaque strings duplicated from the WWW-Authenticate header; the signature binds both to the indexer's protocol identity.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7730",
+        "invoice": "lnbc500n1pn0examplequeryinvoicebodyisopaquehere",
+        "macaroon": "AgEEbGV0aGUCAgABAAISbGV0aGUgYmF0Y2ggbWFjYXJvb24AAAYg",
+        "expiry": 1788307200,
+        "sig": "03276ff2444567a75f272dd9ca28a5e74510059ea70c67b51da5f3e9676dad048d0d4186dbcaf5121fa9ee3e7e8d765c698d5125dc6058b4312407956b0b8bbd"
+      },
+      "canonical": "{\"expiry\":1788307200,\"invoice\":\"lnbc500n1pn0examplequeryinvoicebodyisopaquehere\",\"macaroon\":\"AgEEbGV0aGUCAgABAAISbGV0aGUgYmF0Y2ggbWFjYXJvb24AAAYg\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7730\"}",
+      "sha256": "5815f190abf5a835f6a0ce13ace8fa16be229127070ac2efce03b9c2e0d38a80",
+      "signed": true,
+      "message_type": "payment_challenge"
+    },
+    {
+      "name": "announcement_both_roles",
+      "description": "Announcement declaring both roles. A node MAY declare both; declaring indexer brings the corpus summary and pricing requirements with it.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "protocol_version": 0,
+        "endpoint": "https://index.example.net",
+        "timestamp": 1787000600,
+        "roles": [
+          "broker",
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_query",
+            "price": 2000
+          }
+        ],
+        "corpus": {
+          "document_count": 1204000,
+          "term_count": 8300000,
+          "updated": 1786990000,
+          "languages": [
+            "en"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "dbad434a00b16b5bf0a18ff1d85c35792490fc77c41eea41624ed3b82d2b0122f223b6d7af5d4fd356338893b0580330710805a95496ddad014b9956e21ce465"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":2000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"broker\",\"indexer\"],\"timestamp\":1787000600}",
+      "sha256": "a541cf97205110a6cf92d0c87e2066ae256c1556923160dbf80ce1757180b7f8",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_two_batch_options",
+      "description": "Announcement advertising two per_batch options at different counts. An indexer MAY advertise several; a query selects one by naming its count.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "protocol_version": 0,
+        "endpoint": "https://index.example.net",
+        "timestamp": 1787000700,
+        "roles": [
+          "indexer"
+        ],
+        "pricing": [
+          {
+            "type": "per_batch",
+            "price": 18000,
+            "query_count": 10
+          },
+          {
+            "type": "per_batch",
+            "price": 150000,
+            "query_count": 100
+          }
+        ],
+        "corpus": {
+          "document_count": 1204000,
+          "term_count": 8300000,
+          "updated": 1786990000,
+          "languages": [
+            "en"
+          ],
+          "statistics_versions": [
+            0
+          ]
+        },
+        "sig": "f7f738248f09b783f991d4da1a7c0dff6c2ec9fbf2b27bfe1eb2aa354dea112b69c186d75d3aadc48f91508d7b383d955118d7a228712dde27e5e53a479c8c09"
+      },
+      "canonical": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":18000,\"query_count\":10,\"type\":\"per_batch\"},{\"price\":150000,\"query_count\":100,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"indexer\"],\"timestamp\":1787000700}",
+      "sha256": "ceaeba4c2de8bd987fcb1307027c8aa8d233bc25fd1ff0d1720b783a99270027",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "announcement_future_version",
+      "description": "Announcement declaring a protocol version this document does not define. It validates and its signature verifies, so a node MAY relay it; the same node MUST NOT route on it.",
+      "message": {
+        "pubkey": "b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c",
+        "protocol_version": 7,
+        "endpoint": "https://198.51.100.7",
+        "timestamp": 1787000800,
+        "roles": [
+          "broker"
+        ],
+        "pricing": [],
+        "sig": "2d9177b7479d0030617d895c9f2a91f1ce59a219c0394677fa0aacd527c684c416ad955ce69e3c8d67fa95b162323ed33e79da62be0db46cf73059006c8b6732"
+      },
+      "canonical": "{\"endpoint\":\"https://198.51.100.7\",\"pricing\":[],\"protocol_version\":7,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"timestamp\":1787000800}",
+      "sha256": "a569fc2a83ad0992c04704daa03e0d4fa39b8d96b21b45d66893f2a574d1b7e7",
+      "signed": true,
+      "message_type": "announcement"
+    },
+    {
+      "name": "peer_list_response_empty",
+      "description": "Peer list response with an empty peers array, which is conformant: serving the path obliges a node to answer, never to disclose.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "a41f",
+        "peers": [],
+        "sig": "8433cbf739db3dae96d65bb2cbeef571ba1710cc9c516c8d2a98a8153097cf18f4003f38ab4edcb55a01ea31d31a0c14ed6c9fc623293a3533dfb741f612823a"
+      },
+      "canonical": "{\"peers\":[],\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"a41f\"}",
+      "sha256": "7ec99d157a44a561cf290d9ca568d51a7b97ca1565bf9b93c53dc77b5eaf22c3",
+      "signed": true,
+      "message_type": "peer_list_response"
+    },
+    {
+      "name": "corpus_statistics_response_duplicate_term",
+      "description": "Corpus statistics response naming the same term twice. The array MAY repeat a term; the last occurrence governs.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "3f8a12cd",
+        "statistics_version": 0,
+        "updated": 1786990000,
+        "terms": [
+          {
+            "term": "mempool",
+            "document_count": 3000,
+            "newest": 1786900000
+          },
+          {
+            "term": "mempool",
+            "document_count": 3120,
+            "newest": 1786950000
+          }
+        ],
+        "sig": "9270500cb3050a858320e5360fe7890e2d552df200c159343c487c6a3dee6515cc3aa8919d4f91ffab7068d9ce09e5b00043d1bf52859c618426e5e750214cb1"
+      },
+      "canonical": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"3f8a12cd\",\"statistics_version\":0,\"terms\":[{\"document_count\":3000,\"newest\":1786900000,\"term\":\"mempool\"},{\"document_count\":3120,\"newest\":1786950000,\"term\":\"mempool\"}],\"updated\":1786990000}",
+      "sha256": "f5dc5ef14cd75204557272197e0977a1a9809daa86406888b69b763393c3edd9",
+      "signed": true,
+      "message_type": "corpus_statistics_response"
+    },
+    {
+      "name": "query_request_empty_query",
+      "description": "Query request whose query string is empty. The string MAY be empty; whether it is serviceable is the indexer's policy, not conformance.",
+      "message": {
+        "query": "",
+        "max_results": 1,
+        "request_id": "q-7722",
+        "pricing_type": "per_query",
+        "max_price": 2000
+      },
+      "canonical": "{\"max_price\":2000,\"max_results\":1,\"pricing_type\":\"per_query\",\"query\":\"\",\"request_id\":\"q-7722\"}",
+      "sha256": "0b98ed6e476a8169d310505c941b3dd1a538c67615b5d09513222f2bd0dad3e0",
+      "signed": false,
+      "message_type": "query_request"
+    },
+    {
+      "name": "query_request_zero_max_price",
+      "description": "Query request whose max price is zero. The max price MAY be zero; an indexer whose price is higher declines with price_exceeded.",
+      "message": {
+        "query": "free tier",
+        "max_results": 1,
+        "request_id": "q-7723",
+        "pricing_type": "per_query",
+        "max_price": 0
+      },
+      "canonical": "{\"max_price\":0,\"max_results\":1,\"pricing_type\":\"per_query\",\"query\":\"free tier\",\"request_id\":\"q-7723\"}",
+      "sha256": "ded97a61e7b38ea4d707a8a67d4b1078a3e41b2a1f7e7a92c82b9b9cbf4f4a28",
+      "signed": false,
+      "message_type": "query_request"
+    },
+    {
+      "name": "result_set_unsigned",
+      "description": "Unsigned result set. Result sets MAY be signed; the pubkey is carried either way.",
+      "message": {
+        "pubkey": "4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8",
+        "request_id": "q-7722",
+        "results": [
+          {
+            "id": "doc-1",
+            "url": "https://example.org/one",
+            "title": "One",
+            "snippet": "the first"
+          }
+        ]
+      },
+      "canonical": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7722\",\"results\":[{\"id\":\"doc-1\",\"snippet\":\"the first\",\"title\":\"One\",\"url\":\"https://example.org/one\"}]}",
+      "sha256": "cbc4e725bf7a6cf7f75d65b59d23af6d32661e012ed2e38c0506d42c424f557a",
+      "signed": false,
+      "message_type": "result_set"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "operational_unknown_field",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"max_pricee\":100}",
+      "reason": "Unknown top-level field on an operational message. MUST be rejected; only announcements tolerate unknown fields.",
+      "spec": "Extensibility",
+      "message_type": "query_request",
+      "expect": "unknown_field"
+    },
+    {
+      "name": "missing_required_field",
+      "input": "{\"max_results\":8,\"pricing_type\":\"per_query\",\"max_price\":2000,\"request_id\":\"q1\"}",
+      "reason": "Query request without its query field.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "missing_field"
+    },
+    {
+      "name": "integer_as_string",
+      "input": "{\"max_price\":\"2000\",\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "String-encoded amount. A string where an integer belongs MUST be rejected.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "wrong_type"
+    },
+    {
+      "name": "integer_as_string_count",
+      "input": "{\"max_price\":2000,\"max_results\":\"8\",\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "String-encoded max result count. The rule is not specific to amounts: a string where any integer belongs MUST be rejected.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "wrong_type"
+    },
+    {
+      "name": "floating_point",
+      "input": "{\"max_price\":2000.0,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "Floating-point amount. MUST be rejected.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "non_integer_number"
+    },
+    {
+      "name": "exponent_notation",
+      "input": "{\"max_price\":2e3,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "Exponent notation. Canonical numbers are plain integers.",
+      "spec": "Encoding; Canonical serialization rule 7",
+      "message_type": "query_request",
+      "expect": "non_integer_number"
+    },
+    {
+      "name": "integer_too_large",
+      "input": "{\"max_price\":9007199254740992,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "2^53, one above the maximum. MUST be rejected; parsers that round it to a double will not even see the correct value.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "integer_out_of_range"
+    },
+    {
+      "name": "negative_integer",
+      "input": "{\"max_price\":-1,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "Negative integer. Every integer in the protocol is non-negative.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "integer_out_of_range"
+    },
+    {
+      "name": "max_results_zero",
+      "input": "{\"max_price\":2000,\"max_results\":0,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "Max result count MUST be greater than zero.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "max_terms_zero",
+      "input": "{\"max_terms\":0,\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"r1\",\"sig\":\"57ca7c4e2c9e98de3ec360fb10f350a48faaa018a25dff1e35137939358dcf9d1caaf1e323179d8f80692863d38e51574ccc87e0469e344c9670c6608c1a57a2\",\"statistics_version\":0}",
+      "reason": "Signed corpus statistics request whose max term count is zero. The count, if present, MUST be greater than zero.",
+      "spec": "Corpus statistics request",
+      "message_type": "corpus_statistics_request",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "max_peers_zero",
+      "input": "{\"max_peers\":0,\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"p2\",\"sig\":\"147d159537dd19e49750b76b9bc2461a9d119893f4746041d8cd72717eba160a6418206eecb05c2d90cf6aa83f580a2327e39ca082a45979005155de510b385a\"}",
+      "reason": "Signed peer list request whose max peer count is zero. The count, if present, MUST be greater than zero.",
+      "spec": "Peer list request",
+      "message_type": "peer_list_request",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "duplicate_key",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"query\":\"test2\",\"request_id\":\"q1\"}",
+      "reason": "Duplicate key. MUST be rejected at parsing rather than letting the parser pick one.",
+      "spec": "Canonical serialization rule 4",
+      "message_type": "query_request",
+      "expect": "duplicate_key"
+    },
+    {
+      "name": "null_optional_field",
+      "input": "{\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"r2\",\"statistics_version\":0,\"max_terms\":null,\"sig\":\"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\"}",
+      "reason": "Null is not absence. An absent optional field is omitted entirely; null is a wrong type.",
+      "spec": "Canonical serialization rule 2",
+      "message_type": "corpus_statistics_request",
+      "expect": "null_value"
+    },
+    {
+      "name": "uppercase_pubkey",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"pubkey\":\"88C5204E618B7294B22867984E31DB7C3980C8F1FA76E52E6D12328F97FA2E9B\",\"query\":\"test\",\"request_id\":\"q1\",\"sig\":\"c9c06e8384fdd17254183b912f28bb530e78f24efd6644d041979fc0588d0e37d1270bf31be4d1fb6001d05d249a1b76359ec1a0c8b4a39b4190dbb93a80dbb7\"}",
+      "reason": "Uppercase hexadecimal pubkey on an otherwise valid signed query. MUST be rejected.",
+      "spec": "Keys and signatures",
+      "message_type": "query_request",
+      "expect": "bad_hex"
+    },
+    {
+      "name": "pubkey_without_sig",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\"}",
+      "reason": "Query carrying a pubkey but no sig. The two fields are all-or-nothing.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "sig_without_pubkey",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"sig\":\"11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\"}",
+      "reason": "Query carrying a sig but no pubkey. The two fields are all-or-nothing.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "malformed_signature",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"sig\":\"abc\"}",
+      "reason": "Signature that is not 128 hex characters, paired with a well-formed pubkey.",
+      "spec": "Keys and signatures",
+      "message_type": "query_request",
+      "expect": "bad_hex"
+    },
+    {
+      "name": "invalid_role",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\",\"observer\"],\"sig\":\"2707aed339e61eb784bebae1e84d62d6887abf878a0c4a0c29b0712373b7744fe395e69c74cc59d3c09c37ca359f3c055f72bc9a819f6dffe4482488cd35dfe0\",\"timestamp\":1787000200}",
+      "reason": "Role outside the closed list. The roles list is closed for version 0.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "bad_enum"
+    },
+    {
+      "name": "invalid_pricing_type",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"},{\"price\":5,\"type\":\"per_minute\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"6eb6d5e2ecf9cbe64f6656f795b2bd45ac0fd85cd6a7236c80d56be070f617be6cc5cdb8b0518fc3c7f2f63d9b2cde44c57dc218daa04e6f81fff2d37405d983\",\"timestamp\":1787000200}",
+      "reason": "Pricing type outside the closed list.",
+      "spec": "Pricing types",
+      "message_type": "announcement",
+      "expect": "bad_enum"
+    },
+    {
+      "name": "query_count_on_per_query",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"query_count\":10,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"717a7ba775c3b9f75e1684ae536fa24df646bb5488b75ee937c16fb7b9a5dda2709cc99cf034070bfe6e40703afcd3bfc0eeab6921e454b1f2c3f429985ecca4\",\"timestamp\":1787000200}",
+      "reason": "query_count present on a per_query pricing entry. It belongs to per_batch only.",
+      "spec": "Pricing types; Appendix A",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "query_count_absent_on_per_batch",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":90000,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"c8c375d242937c8a0b95c6792411deb9980543be289df669eb27d01c3c95a70fb4bd8693c9b647db94065abf7f7dced9b35fa346d812fe10ba342c1253d26bd4\",\"timestamp\":1787000200}",
+      "reason": "per_batch pricing entry without query_count.",
+      "spec": "Pricing types; Appendix A",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "query_count_on_per_query_request",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"query_count\":10}",
+      "reason": "Query request naming per_query but carrying a query count. The field travels only with per_batch.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "query_count_absent_on_per_batch_request",
+      "input": "{\"max_price\":50000,\"max_results\":8,\"pricing_type\":\"per_batch\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"test\",\"request_id\":\"q1\",\"sig\":\"40e6e1ddb55b427af966bff37568172f56d826213f365e7ac8f696aad0de57378d6a845e9012b61a4f253a807b558bf74c171b19a8d955e0385e1dd6ac348e5a\"}",
+      "reason": "Signed per_batch query request without a query count. A per_batch query MUST name the batch option it is buying.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "query_count_one_request",
+      "input": "{\"max_price\":50000,\"max_results\":8,\"pricing_type\":\"per_batch\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"test\",\"query_count\":1,\"request_id\":\"q1\",\"sig\":\"8a38e11686058ae6b32eb6bb7487a82fc873dbbb8367aa0072d7fa22802318c2c463da5b487ef94803259101cd998a47ca194a29b2b841f5e07d525eac624297\"}",
+      "reason": "Signed per_batch query request with a query count of one. The count MUST be an integer greater than one.",
+      "spec": "Query request",
+      "message_type": "query_request",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "request_id_empty",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"\"}",
+      "reason": "Request identifier below the 1-byte minimum.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "bad_length"
+    },
+    {
+      "name": "request_id_too_long",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"€€€€€€€€€€€€€€€€€€€€€€\"}",
+      "reason": "Request identifier of 66 UTF-8 bytes (22 three-byte characters). The 64-byte limit is on encoded bytes, not code points: 22 code points, still too long.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "bad_length"
+    },
+    {
+      "name": "query_count_one",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":90000,\"query_count\":1,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"122849a9c890442e2611b49d836db2fe9d9814ef1ca018d5205fd32ed89c2b7fc83c32bb59bdb2b206363e12fd75364fe778e0c7f6de4271e7063dc27f60633d\",\"timestamp\":1787000200}",
+      "reason": "per_batch pricing entry with a query count of one. The count MUST be an integer greater than one.",
+      "spec": "Pricing types",
+      "message_type": "announcement",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "nesting_too_deep",
+      "input": "{\"a\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}",
+      "reason": "80 nested arrays. Defined shapes never nest this deep; the reference implementation enforces a nesting limit of 64 open containers and rejects deeper input cleanly rather than crashing (too_deep). An implementation enforcing a higher local limit parses this input and rejects it at validation as missing_field, since it carries none of a query request's required fields and a missing required field is reported before an unknown one. Either code passes.",
+      "spec": "Encoding; Conformance",
+      "message_type": "query_request",
+      "expect": [
+        "too_deep",
+        "missing_field"
+      ]
+    },
+    {
+      "name": "negative_zero",
+      "input": "{\"max_price\":-0,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "The literal -0. Every integer is non-negative; -0 is a sign the protocol never permits, not an alternative spelling of zero.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "integer_out_of_range"
+    },
+    {
+      "name": "duplicate_key_escaped",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"\\u0071uery\":\"test2\",\"request_id\":\"q1\"}",
+      "reason": "Duplicate key spelled two ways: the second key is 'query' written with an escape. Key equality is judged after escape processing, so this is the duplicate_key case in disguise.",
+      "spec": "Canonical serialization rule 4",
+      "message_type": "query_request",
+      "expect": "duplicate_key"
+    },
+    {
+      "name": "lone_surrogate",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"\\ud800\",\"request_id\":\"q1\"}",
+      "reason": "Escape sequence decoding to an unpaired surrogate. Not a Unicode scalar value; MUST be rejected.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "bad_string"
+    },
+    {
+      "name": "corpus_without_indexer",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"sig\":\"0345f3a59c881cc1a4ab307f723dd1f5134b446a020a06b85a392e44c2cc937e66fcf98c6d678a5f0684bbbbd323de4f77ad37bf4305bd6b029f3f5fd0518c82\",\"timestamp\":1787000200}",
+      "reason": "Broker-only announcement carrying a corpus summary. The summary is present exactly when the roles include indexer.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "pricing_without_indexer",
+      "input": "{\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"broker\"],\"sig\":\"b0e2c37854b7b1ddb2abe66c85c7546f4bc82e650f22c41fff9934b062865520cd31a3f5bd272715e0cb57ad3c64e10788e28ebd76b89caeff7c379ced0e3ba9\",\"timestamp\":1787000200}",
+      "reason": "Broker-only announcement carrying a pricing option. A node not declaring indexer MUST carry an empty pricing array.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "indexer_empty_pricing",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"3cd61094e24f6f9d5ecc7e2d6fb79c5c830c07cfdfa28021a922a3a775bbdc2d65950aa48fe21bc72a5db24e8608635dfccc1ea17d31928fb3c9d4c0d6131db3\",\"timestamp\":1787000200}",
+      "reason": "Indexer announcement with an empty pricing array. An indexer MUST advertise at least one pricing option; free service is a price of 0, not an empty array.",
+      "spec": "Roles; Pricing types",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "duplicate_role",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\",\"indexer\"],\"sig\":\"3492b7a11840961648ebdee7b80bff46a696b1cea7558b41f6261cf3978d6a956d68c60985b1741332cb78e266d76c7e9ae7244757568b242c61215f66c6291b\",\"timestamp\":1787000200}",
+      "reason": "The same role declared twice. The roles array MUST NOT repeat a role.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "duplicate_value"
+    },
+    {
+      "name": "duplicate_pricing_type",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"},{\"price\":500,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"73e4529b93b27206edb2c3c33d22e3290ef7e8782b05baff964dbdc80e0380ef24bddbb25092bdd02dbaa333a56de2cd5f2ba2fc1cf45448e9c1f33c0ee27e4f\",\"timestamp\":1787000200}",
+      "reason": "Two per_query options. An announcement MUST NOT carry per_query or per_result more than once.",
+      "spec": "Pricing types",
+      "message_type": "announcement",
+      "expect": "duplicate_value"
+    },
+    {
+      "name": "duplicate_batch_count",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"},{\"price\":9000,\"query_count\":10,\"type\":\"per_batch\"},{\"price\":8000,\"query_count\":10,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"235aee19a7d5bb630d1bb746acdee402ae3a73339cb8fa50f3fd7bf64b333dd04041404e45ddf99e6b0abde7848a62bf97baf4bf113a45d404fac8767fb0e762\",\"timestamp\":1787000200}",
+      "reason": "Two per_batch options at the same query count. A query selects a batch option by its count, so two options at one count cannot be told apart.",
+      "spec": "Pricing types",
+      "message_type": "announcement",
+      "expect": "duplicate_value"
+    },
+    {
+      "name": "invalid_signature",
+      "input": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\",\"fr\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":2000,\"type\":\"per_query\"},{\"price\":150000,\"query_count\":100,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"indexer\"],\"sig\":\"126a95b8fd1cd18b0d77babcbc0689cc4d128c60b7a64ca2e147eb20dbee95ff948d6229f31f9b3f64310e14ddadaff05a9b526cc76ce83b21478fe3347d4a56\",\"timestamp\":1787000000}",
+      "reason": "Well-formed announcement whose signature does not verify (final bit flipped). MUST be discarded and MUST NOT be relayed.",
+      "spec": "Canonical serialization",
+      "message_type": "announcement",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "uppercase_sig",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"query\":\"test\",\"request_id\":\"q1\",\"sig\":\"C9C06E8384FDD17254183B912F28BB530E78F24EFD6644D041979FC0588D0E37D1270BF31BE4D1FB6001D05D249A1B76359EC1A0C8B4A39B4190DBB93A80DBB7\"}",
+      "reason": "Signature in uppercase hexadecimal. MUST be rejected even though the bytes it encodes would verify.",
+      "spec": "Keys and signatures",
+      "message_type": "query_request",
+      "expect": "bad_hex"
+    },
+    {
+      "name": "corpus_unknown_field",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000,\"zzz\":1},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"0c4fa377e1c53aa53da7b1e9c545b43b1eef1c24f69e77de7d64f5e78fb05c9a432ba57204566735c2a2e916fdff26d4159b05dab230e94ae146e7b9bf532f4f\",\"timestamp\":1787000200}",
+      "reason": "Unknown field inside the corpus object. Announcement tolerance applies to top-level fields only; every nested shape is closed.",
+      "spec": "Extensibility",
+      "message_type": "announcement",
+      "expect": "unknown_field"
+    },
+    {
+      "name": "result_entry_unknown_field",
+      "input": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7719\",\"results\":[{\"id\":\"d1\",\"score\":97,\"snippet\":\"s\",\"title\":\"t\",\"url\":\"https://example.org/a\"}],\"sig\":\"54c2ab55d1640a78018c28f1e8d48a3d3bc2491d67f197bcb1b555155e6e89a0a7ad998074b35dcdca75296bb3fcf05acc17b191f4cb4812acb93fedc05ca77c\"}",
+      "reason": "Unknown field inside a result entry, here a score, which the protocol does not carry. Nested shapes on operational messages are closed.",
+      "spec": "Extensibility; Result set",
+      "message_type": "result_set",
+      "expect": "unknown_field"
+    },
+    {
+      "name": "indexer_without_corpus",
+      "input": "{\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[\"indexer\"],\"sig\":\"65b43e4283f9e954664effb2ca7534271ca96a12ae828185ee4daa408734bec49453dd25e84b24846bee7095aa83e37f4b2bb38921f22fe2bb19857c3748a407\",\"timestamp\":1787000200}",
+      "reason": "Announcement declaring the indexer role without a corpus summary.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "empty_roles",
+      "input": "{\"corpus\":{\"document_count\":10,\"languages\":[\"en\"],\"statistics_versions\":[0],\"term_count\":100,\"updated\":1787000000},\"endpoint\":\"https://198.51.100.7\",\"pricing\":[{\"price\":1000,\"type\":\"per_query\"}],\"protocol_version\":0,\"pubkey\":\"b4ad274d8b67c0a509a579091426e719487b8162514a64742f0002aec482976c\",\"roles\":[],\"sig\":\"3fb82b4a60413b1f16c1598ea9262237a9355c4fc9b5880046ecfdfe8667a76dbeb7ba8a3956a9b7cc8e8f07cb1b7363fcf2de9a2c25c8575d970c73ca2cd14a\",\"timestamp\":1787000200}",
+      "reason": "Announcement declaring no role. A node MUST declare at least one.",
+      "spec": "Roles",
+      "message_type": "announcement",
+      "expect": "out_of_range"
+    },
+    {
+      "name": "announcement_unsigned",
+      "input": "{\"corpus\":{\"document_count\":1204000,\"languages\":[\"en\",\"fr\"],\"statistics_versions\":[0],\"term_count\":8300000,\"updated\":1786990000},\"endpoint\":\"https://index.example.net\",\"pricing\":[{\"price\":2000,\"type\":\"per_query\"},{\"price\":150000,\"query_count\":100,\"type\":\"per_batch\"}],\"protocol_version\":0,\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"roles\":[\"indexer\"],\"timestamp\":1787000000}",
+      "reason": "Announcement without a signature. Announcements MUST be signed.",
+      "spec": "Canonical serialization",
+      "message_type": "announcement",
+      "expect": "missing_field"
+    },
+    {
+      "name": "peer_list_request_unsigned",
+      "input": "{\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"p1\"}",
+      "reason": "Peer list request without a signature. Peer list requests MUST be signed.",
+      "spec": "Peer list request",
+      "message_type": "peer_list_request",
+      "expect": "missing_field"
+    },
+    {
+      "name": "corpus_statistics_request_unsigned",
+      "input": "{\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa2e9b\",\"request_id\":\"r3\",\"statistics_version\":0}",
+      "reason": "Corpus statistics request without a signature. Corpus statistics requests MUST be signed.",
+      "spec": "Corpus statistics request",
+      "message_type": "corpus_statistics_request",
+      "expect": "missing_field"
+    },
+    {
+      "name": "corpus_statistics_response_unsigned",
+      "input": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"r3\",\"statistics_version\":0,\"terms\":[],\"updated\":1786990000}",
+      "reason": "Corpus statistics response without a signature. Corpus statistics responses MUST be signed.",
+      "spec": "Corpus statistics response",
+      "message_type": "corpus_statistics_response",
+      "expect": "missing_field"
+    },
+    {
+      "name": "term_entry_unknown_field",
+      "input": "{\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"r4\",\"sig\":\"a4a92fa2c1d3de02d69967109024604f30139bd02015bb5c83911dd250acba8e082c21767434cd81aa3e497f6dae3e6462904c259400e0693682a2df142568fe\",\"statistics_version\":0,\"terms\":[{\"document_count\":3,\"idf\":12,\"newest\":0,\"term\":\"mempool\"}],\"updated\":1786990000}",
+      "reason": "Unknown field inside a statistics term entry. Nested shapes on operational messages are closed; the signature verifying does not save it.",
+      "spec": "Extensibility; Statistics formats",
+      "message_type": "corpus_statistics_response",
+      "expect": "unknown_field"
+    },
+    {
+      "name": "peer_list_response_unknown_field",
+      "input": "{\"peers\":[],\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"a41e\",\"zzz\":1}",
+      "reason": "Unknown field on a peer list response envelope. Announcement tolerance applies to the embedded announcements, never to the envelope.",
+      "spec": "Extensibility",
+      "message_type": "peer_list_response",
+      "expect": "unknown_field"
+    },
+    {
+      "name": "not_utf8_bytes",
+      "input": "7b226d61785f7072696365223a323030302c226d61785f726573756c7473223a382c2270726963696e675f74797065223a227065725f7175657279222c227175657279223a22ff222c22726571756573745f6964223a227131227d",
+      "encoding": "hex",
+      "reason": "Query request whose bytes contain 0xFF, which no UTF-8 sequence permits. The input field is hex-encoded because the bytes cannot live in this JSON file; decode it before feeding your parser.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "not_utf8"
+    },
+    {
+      "name": "truncated_json",
+      "input": "{\"query\":\"test\"",
+      "reason": "Bytes that stop before the JSON does. Not a message.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "not_json"
+    },
+    {
+      "name": "top_level_array",
+      "input": "[\"not\",\"an\",\"object\"]",
+      "reason": "A JSON array at the top level. Every message body is a JSON object.",
+      "spec": "Message types",
+      "message_type": "query_request",
+      "expect": "not_object"
+    },
+    {
+      "name": "boolean_value",
+      "input": "{\"max_price\":true,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\"}",
+      "reason": "Boolean where an integer belongs. No boolean fields exist in version 0.",
+      "spec": "Encoding",
+      "message_type": "query_request",
+      "expect": "wrong_type"
+    },
+    {
+      "name": "payment_challenge_unsigned",
+      "input": "{\"expiry\":1788307200,\"invoice\":\"lnbc500n1pn0examplequeryinvoicebodyisopaquehere\",\"macaroon\":\"AgEEbGV0aGUCAgABAAISbGV0aGUgYmF0Y2ggbWFjYXJvb24AAAYg\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7730\"}",
+      "reason": "Payment challenge without a signature. Payment challenges MUST be signed; a broker MUST NOT pay from one.",
+      "spec": "Payment challenge",
+      "message_type": "payment_challenge",
+      "expect": "missing_field"
+    },
+    {
+      "name": "payment_challenge_tampered_invoice",
+      "input": "{\"expiry\":1788307200,\"invoice\":\"lnbc500n1pn0attackerinvoicesubstitutedafter\",\"macaroon\":\"AgEEbGV0aGUCAgABAAISbGV0aGUgYmF0Y2ggbWFjYXJvb24AAAYg\",\"pubkey\":\"4af8136ba2e2c7027f55742d1d75b0a03f3388367c139f51ef19420562d129c8\",\"request_id\":\"q-7730\",\"sig\":\"03276ff2444567a75f272dd9ca28a5e74510059ea70c67b51da5f3e9676dad048d0d4186dbcaf5121fa9ee3e7e8d765c698d5125dc6058b4312407956b0b8bbd\"}",
+      "reason": "Payment challenge whose invoice was replaced after signing. The signature no longer verifies; this is the invoice-substitution attack the challenge signature exists to defeat.",
+      "spec": "Payment profile",
+      "message_type": "payment_challenge",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "per_batch_query_unsigned",
+      "input": "{\"max_price\":50000,\"max_results\":5,\"pricing_type\":\"per_batch\",\"query\":\"taproot annex\",\"query_count\":100,\"request_id\":\"q-7730\"}",
+      "reason": "Anonymous per_batch query, otherwise complete. A per_batch query MUST carry pubkey and sig so the batch macaroon can be bound to the requester.",
+      "spec": "Payment profile",
+      "message_type": "query_request",
+      "expect": "bad_combination"
+    },
+    {
+      "name": "peer_list_response_missing_pubkey",
+      "input": "{\"peers\":[],\"request_id\":\"a41e\"}",
+      "reason": "Unsigned peer list response without a pubkey. The signature is optional; the pubkey is REQUIRED either way.",
+      "spec": "Peer list response",
+      "message_type": "peer_list_response",
+      "expect": "missing_field"
+    },
+    {
+      "name": "error_missing_pubkey",
+      "input": "{\"code\":\"malformed\"}",
+      "reason": "Unsigned error without a pubkey. The signature is optional; the pubkey is REQUIRED either way, so a requester is always told which node refused it.",
+      "spec": "Error",
+      "message_type": "error",
+      "expect": "missing_field"
+    },
+    {
+      "name": "malformed_pubkey",
+      "input": "{\"max_price\":2000,\"max_results\":8,\"pricing_type\":\"per_query\",\"query\":\"test\",\"request_id\":\"q1\",\"pubkey\":\"88c5204e618b7294b22867984e31db7c3980c8f1fa76e52e6d12328f97fa\",\"sig\":\"11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\"}",
+      "reason": "Pubkey of 60 hex characters rather than 64. A pubkey that is not exactly the stated length MUST be rejected.",
+      "spec": "Keys and signatures",
+      "message_type": "query_request",
+      "expect": "bad_hex"
+    }
+  ]
+}

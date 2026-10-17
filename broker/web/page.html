@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>__TITLE__</title>
+<style>
+/*@@STYLE@@*/
+</style>
+</head>
+<body>
+<main>
+  <header id="hero">
+    <div id="hero-fig" class="figure"></div>
+    <a id="hero-link" href="/protocol">How DITTA works</a>
+    <h1>__TITLE__</h1>
+  </header>
+  <div id="chips" hidden></div>
+  <form id="f">
+    <input id="q" type="search" autofocus autocomplete="off"
+           placeholder="Search the network" aria-label="Search the network">
+    <button id="go" class="primary" type="submit">Search</button>
+  </form>
+  <div id="scopeline" aria-live="polite"></div>
+  <div id="quoteline" class="hint" aria-live="polite"></div>
+  <!-- one row: the choice people change, and two disclosures -->
+  <div class="toolrow">
+    <label class="torbox"><input type="checkbox" id="onion-off" checked> Exclude Tor indexers</label>
+    <button id="opt-btn" type="button" class="disclose" aria-expanded="false"
+            aria-controls="opt-panel">Options</button>
+    <button id="hist-btn" type="button" class="disclose" aria-expanded="false"
+            aria-controls="receipts" hidden>History <span
+            id="histcount"></span></button>
+  </div>
+  <div id="opt-panel" class="knobs panel" hidden>
+    <label>Results <input id="n" type="number" min="1" max="50"
+           value="10"></label>
+    <label>Spend cap <input id="cap" type="number" min="0" step="1"
+           placeholder="sats"></label>
+  </div>
+  <section id="receipts" class="panel" hidden aria-label="History">
+    <p class="hint">Your history is kept only in this browser, and only
+      the last 20 searches. The broker keeps no history of your searches.
+      It does keep a record of how each indexer answered each query, the
+      query's words and the results included, which isn't linked to you
+      or this browser.</p>
+    <div id="receiptitems"></div>
+    <button id="histclear" type="button" class="textlink destructive">Clear
+      history</button>
+  </section>
+  <div class="statusrow" aria-live="polite">
+    <span id="spinner" class="spinner" hidden></span>
+    <div id="status"></div>
+    <button id="newsearch" type="button" hidden>New search</button>
+  </div>
+
+  <div id="side">
+    <aside id="pendinglist" hidden>
+      <h2>Unredeemed searches</h2>
+      <div class="hint">Paid one of these? Resume it — the broker checks
+        whether the payment landed. Unpaid invoices simply expire.</div>
+      <div id="pendingitems"></div>
+    </aside>
+  </div>
+
+  <div id="pay" hidden>
+    <h2>Payment required</h2>
+    <div class="amount" id="pay-amount"></div>
+    <div class="delta" id="pay-delta" hidden></div>
+    <img id="pay-qr" alt="Lightning invoice QR code">
+    <div class="row">
+      <input id="pay-invoice" type="text" class="mono" readonly
+             aria-label="Lightning invoice">
+      <button id="pay-copy" type="button">Copy</button>
+    </div>
+    <div class="hint">Pay this invoice with a Lightning wallet. The broker
+      watches its own node: your results appear here by themselves the
+      moment the payment lands.</div>
+    <div class="hint" id="pay-settled" hidden></div>
+    <details id="backup">
+      <summary>Paid, but nothing happened?</summary>
+      <div class="hint">Paste the payment preimage from your wallet's
+        payment details and collect the results by hand. (Leave it empty
+        to just ask the broker again.)</div>
+      <div class="row">
+        <input id="preimage" type="text" class="mono" autocomplete="off"
+               placeholder="preimage (64 hex characters)"
+               aria-label="Payment preimage">
+        <button id="finish" class="primary" type="button">Get results</button>
+      </div>
+    </details>
+    <div class="row">
+      <button id="discard" type="button" class="destructive">Discard this
+        search</button>
+    </div>
+  </div>
+
+  <div id="askdid" hidden></div>
+  <div id="viewtabs" class="tabs" hidden>
+    <button id="tab-list" type="button" class="tab on">Results</button>
+    <button id="tab-map" type="button" class="tab">Route map</button>
+    <button id="tab-group" type="button" class="tab">By indexer</button>
+  </div>
+  <div id="map" hidden>
+    <div id="map-svg"></div>
+    <div id="map-detail"></div>
+  </div>
+  <div id="results" aria-live="polite"></div>
+  <div id="drill" hidden></div>
+
+  <div id="netblock"></div>
+  <div id="cards" hidden>
+    <h2 id="cards-head">Searchable right now</h2>
+    <div id="cards-items"></div>
+  </div>
+
+</main>
+<footer class="sitefoot">
+  <a href="/protocol">How DITTA works</a>
+  <a href="https://github.com/ditta-protocol/ditta-spec">Specification</a>
+</footer>
+<script>
+/*@@SCRIPT@@*/
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Runtime state — never committed
+data/
+*.db
+*.seckey
+
+# Local configs may carry credentials (pay providers, LND paths); the repo
+# ships no credentials, ever.
+broker.yaml
+config.yaml
+node.yaml
+.env

@@ -1,0 +1,56 @@
+/* The explainer page: page.css's tokens and controls, plus its own layout.
+   The one page where figures carry the content. */
+.explainer main { padding-bottom: var(--s-6); }
+.crumbs { font: var(--t-small); margin-bottom: var(--s-5); }
+.crumbs a { color: var(--ink-muted); }
+
+.explainer h1 { font: var(--t-display); margin: 0 0 var(--s-4); }
+.explainer h2 { font: var(--t-title); font-size: 1.25rem; margin: 0 0 var(--s-3); }
+.explainer h2 a { color: inherit; text-decoration: none; }
+.explainer h2 a:hover { text-decoration: underline; }
+.explainer h3 { font: var(--t-title); margin: 0 0 var(--s-1); }
+.explainer p, .explainer li, .explainer dd { max-width: 65ch; }
+.explainer section {
+  padding: var(--s-6) 0;
+  border-top: var(--stroke) solid var(--rule);
+  scroll-margin-top: var(--s-4);
+}
+.explainer section.opening { border-top: none; padding-top: 0; }
+.lede { font: var(--t-body); font-size: 1.125rem; margin: 0 0 var(--s-3); }
+.note, .aside { font: var(--t-small); color: var(--ink-muted); }
+.note { color: var(--warn); }
+
+.explainer .figure { width: 100%; max-width: 30rem; margin: var(--s-5) auto 0; }
+
+.points { margin: 0; padding-left: var(--s-5); }
+.points li { margin: 0 0 var(--s-3); }
+
+/* the six steps: the diagram, then its words */
+.steps { list-style: none; margin: 0 0 var(--s-5); padding: 0; counter-reset: step; }
+.steps > li {
+  counter-increment: step;
+  padding: var(--s-5) 0; border-bottom: var(--stroke) solid var(--rule);
+}
+.steps > li:last-child { border-bottom: none; }
+.steps > li .figure { margin: 0 auto var(--s-4); }
+.steps h3::before {
+  content: counter(step) ". "; color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.steps p { margin: 0; }
+
+.pillars { margin: 0; }
+.pillars > div { padding: var(--s-3) 0; }
+.pillars dt { font: var(--t-title); font-size: 1rem; }
+.pillars dd { margin: var(--s-1) 0 0; }
+
+/* the live panel: a real announcement, exactly as signed */
+.announcement { margin: var(--s-4) 0 0; }
+.announcement pre {
+  margin: 0; padding: var(--s-3);
+  border: var(--stroke) solid var(--rule); border-radius: var(--r-control);
+  background: var(--surface);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 28rem; overflow: auto;
+}
+.announcement figcaption { margin-top: var(--s-2); }

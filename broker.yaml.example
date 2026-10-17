@@ -1,0 +1,224 @@
+# Broker configuration. Copy to broker.yaml (gitignored) and edit.
+# Credentials appear ONLY here — never in the repository.
+#
+# Free mode is the default: no receive section = charge nothing at the door,
+# no pay section = route only to price-0 indexers. Each half turns on real
+# money independently.
+
+# The base URL other nodes reach this broker at (goes in our announcement).
+# TLS is REQUIRED by the spec for anything reachable over the public
+# internet — front this with your reverse proxy and announce the https URL.
+endpoint: "http://127.0.0.1:8410"
+
+listen_host: "127.0.0.1"      # what the process binds; proxy terminates TLS
+listen_port: 8410
+data_dir: "data"              # identity key, L402 state, NWC ledger
+
+# Bootstrap: peers to announce ourselves to and pull announcements from.
+# Any DITTA node's base URL works; the broker learns the rest by gossip.
+seeds: []
+#  - "https://indexer.example.org"
+
+fanout: 3                     # indexers asked per query
+max_results_limit: 50
+reannounce_interval: 3600
+refresh_interval: 600
+
+# --- the thin web client (a separate process: python -m broker.webclient) ---
+# The human entrance — expose THIS (e.g. through a Cloudflare tunnel), not
+# the broker's protocol port. It speaks the broker's /client API.
+webclient:
+  listen_host: "127.0.0.1"
+  listen_port: 8420
+  broker_url: "http://127.0.0.1:8410"
+  title: "Search"
+  max_results: 10
+  # site_secret: "<long random string>"   # same value as receive.site_secret
+
+# --- Outcome store -----------------------------------------------------------
+# Every routed query lands in data/outcomes.db: one append-only row per
+# indexer per query (identity, terms, predicted coverage, delivery facts,
+# result URLs, merge survival, uniqueness). The learner, reachability
+# status, and the front page read these rows and nothing else.
+#
+# outcomes:
+#   retention_days: 90
+# --- Learned routing ---------------------------------------------------------
+# mode: learned (default) scores indexers by query-likelihood over their
+# term DENSITIES (df/N, smoothed by a general prior), adjusted by what the
+# outcome store has seen delivered (per-term posteriors, Thompson-sampled
+# but seeded per query+hour so a quote and its invoice always agree),
+# calibration, and reliability. Selection stops at skip_odds: an indexer
+# trailing the best score by that factor is not asked at all — fanout is
+# a ceiling, not a quota. Results are merged by evidence (source affinity
+# x query-term presence in the result itself x cross-source agreement),
+# the whole fetched tail is returned, and divider_ratio marks where the
+# broker stops believing. mode: coverage restores the old pipeline for
+# comparison. All numbers are live-tunable policy.
+#
+# routing:
+#   mode: learned                # learned | coverage
+#   skip_odds: 10                # score gap that drops an indexer entirely
+#   exploration: 0.05            # chance one extra reachable node is asked
+#   divider_ratio: 0.2           # confidence below this = under the line
+#   density_lambda: 0.8          # observed-density vs prior blend
+#   refresh_seconds: 300         # learner recompute cadence
+#   window_days: 7               # outcome window the learner reads
+
+# --- Indexer naming (local inference) ---------------------------------------
+# The broker gives each indexer a fun human name over its pubkey, plus a
+# factual description and the broker's own subjective take, kept with name
+# history. Attribution only — NEVER a routing input, and the searcher can
+# never pick indexers through it. Runs in the background on a LOCAL
+# OpenAI-compatible endpoint; absent, cards just show the pubkey. No model
+# name appears in code — set the endpoint/model here or via
+# BROKER_NAMING_ENDPOINT / BROKER_NAMING_MODEL (see .env.example).
+#
+# naming:
+#   endpoint: "http://127.0.0.1:8080/v1"   # or $BROKER_NAMING_ENDPOINT
+#   model: "your-local-model-id"           # or $BROKER_NAMING_MODEL
+#   strip_reasoning: false                 # true to strip <think>...</think>
+#   # A reasoning model (e.g. Qwen3) spends tokens THINKING before it
+#   # emits the JSON; with a small max_tokens the reply is truncated to
+#   # pure reasoning and nothing parses (the usual cause of 'naming held').
+#   # Either keep the generous default token budgets, or turn thinking
+#   # off via the model's own knob — passed verbatim, no model-specific
+#   # code:
+#   extra_body:
+#     chat_template_kwargs: { enable_thinking: false }
+#   min_queries_for_assessment: 10         # no opinion before experience
+#   refresh_seconds: 21600                 # per-indexer re-run horizon (6h)
+#   scan_seconds: 300                      # how often the loop checks (cheap;
+#                                          # only re-runs on material change)
+#   candidates: 5
+#   reset_names: false                     # set true ONCE to flush every
+#                                          # current name (e.g. after a bad
+#                                          # model) and regenerate; names
+#                                          # also refresh on a model change
+#   # per-stage sampling + prompt text are overridable: stage1/2/3/4,
+#   # prompts (stage1_system..stage4_system) — tuned for the target model.
+
+# --- Reachability: "searchable" means recently answered ---------------------
+# Status per indexer (reachable / degraded / unreachable / never contacted)
+# comes from observed contact — gossip's /corpus pull each refresh_interval
+# is the probe, and every routed query adds evidence. Routing never selects
+# unreachable or never-contacted nodes (after the startup grace), and picks
+# degraded ones only when nothing better covers the terms.
+#
+# reachability:
+#   window_seconds: 1800              # recent-success window = reachable
+#   degraded_horizon_seconds: 21600   # stale-success horizon = degraded
+#   startup_grace_seconds: 120        # fresh restart may route before the
+#                                     # first gossip cycles land
+
+# --- Cards & visibility: the client-API rendering policy --------------------
+# Display policy only — nothing here touches routing, pricing, or the wire.
+# Chips on the /client/peers cards rank by distinctiveness against a bundled
+# general-English prior (log df_here/df_general), so no indexer's tokenizer
+# can flood them with stopwords.
+#
+# cards:
+#   min_token_length: 3             # characters; also drops pure-numeric tokens
+#   fresh_window_seconds: 604800    # 7 days; "recently active" cutoff
+#
+# The visibility seam (all default OFF; the demo deployment turns both on):
+# whether the paid response carries the full outcome record — every indexer
+# considered/routed/paid/responded/failed, coverage, latency, payments —
+# and the raw per-indexer result sets for the drill-down view. Per-result
+# sources[] attribution is always on: you paid, you may know who served you.
+#
+# client:
+#   expose_outcome: true
+#   expose_raw_sets: true
+
+# --- Tor: reach .onion indexers ---------------------------------------------
+# Without this section, onion endpoints are refused outright (never resolved
+# or dialed — attempting DNS on an .onion name leaks it) and routing simply
+# skips them. With it, .onion traffic goes through the SOCKS proxy, hostname
+# resolved by Tor. Needs the [tor] extra (pip install -e '.[tor]') and a
+# running tor daemon.
+#
+# tor:
+#   socks: "socks5://127.0.0.1:9050"
+#   timeout: 60                            # onion circuits are slow
+
+# --- TAKE payments at our own /client/search (entry pricing) ----------------
+# Needs only an INVOICE-ONLY macaroon: it can mint invoices, it cannot spend.
+# Section absent = free entry, no Lightning needed. Every price and margin
+# defaults to 0: the broker charges only what is written here.
+#
+# pricing_mode: quoted — each query is priced by routing evaluated over the
+# cached network (rank against the query's terms, allocate, sum announced
+# indexer prices) plus the margin below. The same computation backs
+# /client/quote, so a client can show the price BEFORE the query is sent;
+# quote and invoice may differ when the cache moves between them.
+# Single-use tokens are bound to the exact request bytes.
+#
+# The head start (on by default): the broker watches its own node for the
+# invoice settling and starts routing before the payer comes back to redeem
+# — redemption then serves the prefetched results. head_start: false
+# disables only the early routing.
+#
+# site_secret: shared with the web client (webclient.site_secret below) and
+# nobody else. It is what lets this broker's OWN site redeem with the
+# preimage slot empty, on the node's witness of settlement — pay, and the
+# results appear. Agents on /client/search are not witnessed: they present
+# the preimage as L402 says. Unset, the site falls back to the pasted
+# preimage. Any long random string; keep it out of the page and of logs.
+#
+# receive:
+#   pricing_mode: quoted
+#   margin_flat_msat: 0                    # your fee on top of indexer cost
+#   margin_percent: 0                      # (both default 0: pass cost through)
+#   head_start: true
+#   head_start_poll_seconds: 2             # settlement poll cadence
+#   head_start_ttl_seconds: 3600           # forget unpaid challenges after
+#   site_secret: "<long random string>"    # same value as webclient.site_secret
+#
+#   Minter, pick ONE. lnbits (wallet-scoped invoice key — pairs with the
+#   lnbits pay provider below so both halves live in one wallet; note
+#   LNbits mints whole sats, so fractional-msat totals round UP):
+#   lnbits:
+#     url: "https://<lnbits-host>"
+#     invoice_key: "<that wallet's invoice/read key>"
+#
+#   ...or lnd directly (invoice-only macaroon):
+#   lnd:
+#     rest_url: "https://<lnd-host>:8080"
+#     macaroon_path: "/etc/broker/invoice.macaroon"
+#     tls_cert_path: ""                    # empty = don't verify (self-signed)
+#
+# The static alternative: fixed prices from config, quote == price always.
+#
+# receive:
+#   pricing_mode: static
+#   pricing:
+#     - {type: per_query, price: 0}        # msat; set your price (unset = 0)
+#   lnd: { ... as above ... }
+
+# --- MAKE payments to paid indexers (the spend credential) ------------------
+# The spend credential only lives on a host allowed to spend. Caps are
+# msat, enforced locally against a park-before-pay ledger, on top of
+# whatever the wallet itself enforces.
+#
+# lnbits: the recommended shape — the admin key spends from ONE LNbits
+# wallet only, so the blast radius is that wallet's balance, which you
+# pre-fund with the broker's working budget.
+#
+# pay:
+#   provider: lnbits                       # none | mock | nwc | lnbits
+#   lnbits:
+#     url: "https://<lnbits-host>"
+#     admin_key: "<that wallet's admin key>"
+#     max_msat_per_payment: 100000         # 100 sats
+#     max_msat_per_day: 500000             # 500 sats
+#
+# ...or NWC (a connection URI with its own budget):
+#
+# pay:
+#   provider: nwc
+#   nwc:
+#     connection: "nostr+walletconnect://<wallet-pubkey>?relay=wss://<relay>&secret=<64-hex>"
+#     max_msat_per_payment: 100000         # 100 sats
+#     max_msat_per_day: 500000             # 500 sats
+#     encryption: auto                     # auto | nip04 | nip44_v2

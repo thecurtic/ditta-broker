@@ -1,0 +1,39 @@
+[project]
+name = "fedsearch-broker"
+version = "0.0.1"
+description = "An independent broker for DITTA, the federated web search protocol with Lightning payment"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+# The wire layer and the mock end-to-end loop use only the standard library.
+# httpx is needed only for real HTTP transport and LND invoice minting.
+dependencies = []
+
+[project.optional-dependencies]
+http = ["httpx>=0.27"]
+nwc = ["websockets>=12", "cryptography>=42"]
+# coincurve (libsecp256k1) is an optional fast path for BIP-340; the pure
+# Python implementation remains the reference and the fallback.
+web = ["httpx>=0.27", "pyyaml>=6", "segno>=1.6", "coincurve>=19"]
+node = ["httpx>=0.27", "pyyaml>=6", "coincurve>=19"]
+tor = ["httpx[socks]>=0.27"]        # SOCKS support for .onion indexers
+dev = ["pytest>=8.0", "httpx[socks]>=0.27", "websockets>=12", "cryptography>=42",
+       "segno>=1.6", "pyyaml>=6", "coincurve>=19"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["broker*"]
+
+[tool.setuptools.package-data]
+# The web client's page is assembled at startup from these files.
+broker = ["web/*.html", "web/*.css", "web/*.js", "web/fonts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

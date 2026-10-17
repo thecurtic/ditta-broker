@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How DITTA works</title>
+<style>
+/*@@STYLE@@*/
+</style>
+</head>
+<body class="explainer">
+<main>
+  <nav class="crumbs"><a href="/">__TITLE__</a></nav>
+
+  <!-- The protocol explanation (everything but #network) is kept free of
+       anything specific to this broker, so it can move to the spec repo. -->
+  <section id="how-ditta-works" class="opening">
+    <h1>How DITTA works</h1>
+    <p class="lede">DITTA is an open protocol for federated web search.
+      Independent operators index what they know best and answer queries
+      against it, free or for a payment over Lightning, with no central
+      party in between.</p>
+    <p class="note">Version 0 is a draft. It is unstable, and later
+      revisions can break anything built against it.</p>
+    <div class="figure lead" data-figure="fanout" data-play
+         aria-label="You send a query to a broker. The broker asks three indexers (forums, news and code), pays the code indexer 21 sats over Lightning, and sends you back one ranked list."></div>
+  </section>
+
+  <section id="the-problem">
+    <h2><a href="#the-problem">The problem</a></h2>
+    <p>Indexing is expensive, and nobody pays the people who do it. Someone
+      who knows a niche can build a better index of it than a general
+      engine can, but there is no way to be paid for answering queries
+      against it, and no way for searchers to find it.</p>
+  </section>
+
+  <section id="two-roles">
+    <h2><a href="#two-roles">Two roles</a></h2>
+    <ul class="points">
+      <li>An <strong>indexer</strong> keeps a corpus of documents, answers
+        queries against it, and publishes a signed announcement: where it
+        can be reached, what its corpus looks like, and what a query
+        costs.</li>
+      <li>A <strong>broker</strong> takes a query, decides which indexers to
+        ask, pays them, merges what comes back and returns the results. What
+        a broker sells is judgment: which indexers to ask, and how to
+        combine their answers.</li>
+      <li>A node can be both. There is no registry and no privileged node.
+        Nodes learn about each other from announcements, which any node can
+        pass on to its peers, unchanged: any change would break the
+        signature. Roles are declared by the node itself; only experience
+        checks them.</li>
+    </ul>
+    <div class="figure" data-figure="announce" data-play
+         aria-label="Three indexers, forums, code and news, send each other signed announcements and send them to a broker. The broker files each into a profile with its history: forums since 26 days, last heard 1 hour ago; code since 9 days, last heard 5 minutes ago; news since 2 hours."></div>
+    <p class="aside">This site is a broker. What it shows is one broker's
+      view of the network, not the network itself.</p>
+  </section>
+
+  <section id="how-a-query-flows">
+    <h2><a href="#how-a-query-flows">How a query flows</a></h2>
+    <ol class="steps">
+      <li>
+        <div class="figure" data-figure="step1" data-play
+             aria-label="You send the query &ldquo;channel jamming&rdquo; to a broker."></div>
+        <div><h3>A query reaches a broker</h3>
+          <p>You send a query to a broker. How you reach a broker is not part
+            of the protocol; a search page like this one is one way, a
+            program is another.</p></div>
+      </li>
+      <li>
+        <div class="figure" data-figure="step2" data-play
+             aria-label="The broker, holding the announcements it has collected, asks the forums and code indexers and does not ask the news and recipes indexers."></div>
+        <div><h3>The broker picks indexers</h3>
+          <p>It reads the announcements it holds, and the per-term statistics
+            it can ask each indexer for, and decides whom to ask. How it
+            decides is its own business.</p></div>
+      </li>
+      <li>
+        <div class="figure" data-figure="step3" data-play
+             aria-label="The forums indexer answers the broker with 402 payment required and an invoice card: 21 sats, a QR code, and the indexer's signature."></div>
+        <div><h3>A charging indexer asks to be paid</h3>
+          <p>It answers with HTTP 402 and a signed payment challenge carrying
+            a Lightning invoice. An indexer that charges nothing just
+            answers.</p></div>
+      </li>
+      <li>
+        <div class="figure" data-figure="step4" data-play
+             aria-label="The broker pays the forums indexer 21 sats over Lightning, then sends the same query, channel jamming, again with proof of payment: same query, same bytes."></div>
+        <div><h3>The broker pays and asks again</h3>
+          <p>It pays the invoice and sends the identical query again, with
+            proof of payment in the request header. The query's bytes do not
+            change.</p></div>
+      </li>
+      <li>
+        <div class="figure" data-figure="step5" data-play
+             aria-label="The forums indexer returns a results card to the broker: results numbered 1 to 3, in its own order, best first."></div>
+        <div><h3>The indexer answers</h3>
+          <p>It searches and returns a result set: documents in its own
+            order of relevance, best first.</p></div>
+      </li>
+      <li>
+        <div class="figure" data-figure="step6" data-play
+             aria-label="Result sets from the forums, code and news indexers go into the broker, which sends one ranked list on to you."></div>
+        <div><h3>The broker merges and ranks</h3>
+          <p>It merges the result sets from every indexer it asked, ranks
+            them by its own judgment, and returns one list.</p></div>
+      </li>
+    </ol>
+    <p>Payment uses L402, an existing convention for paying for HTTP
+      requests over Lightning. DITTA adds no payment mechanism of its own; it
+      adds a signature on the payment challenge, so a broker knows the
+      invoice comes from the indexer it chose. Paying is optional: an indexer
+      can charge nothing.</p>
+  </section>
+
+  <section id="what-holds-it-together">
+    <h2><a href="#what-holds-it-together">What holds it together</a></h2>
+    <dl class="pillars">
+      <div><dt>Identity is a key</dt>
+        <dd>Every node has a keypair, and its messages are signed with
+          BIP-340 Schnorr signatures. The key is a node's lasting identity:
+          its endpoint can change, its key does not, so whatever reputation
+          it earns attaches to the key. TLS encrypts the connection but never
+          says who anyone is.</dd></div>
+      <div><dt>One message, one byte sequence</dt>
+        <dd>Every message has a single canonical serialization, so
+          implementations in different languages produce and check identical
+          signatures. Published test vectors prove it, byte for byte.</dd></div>
+      <div><dt>Strict by default</dt>
+        <dd>Every message, the announcement included, is rejected for a
+          missing field, a wrong type or a bad signature. Every message
+          except the announcement is also rejected for a field it doesn't
+          define: these operational messages are strict because some of
+          them move money, so a misspelled field fails loudly. Announcements
+          tolerate unknown fields at their top level only, so the protocol
+          can grow.</dd></div>
+      <div><dt>Indexers can be stateless</dt>
+        <dd>An indexer commits to a price, gets paid, then searches. It
+          holds nothing between issuing a payment challenge and seeing it
+          redeemed. After that it keeps very little: a mark that a
+          single-query credential is spent or, under a batch credential, the
+          request identifiers it has already served, so a retried query is
+          never counted twice. Both are dropped when the credential
+          expires.</dd></div>
+    </dl>
+  </section>
+
+  <section id="what-it-leaves-alone">
+    <h2><a href="#what-it-leaves-alone">What the protocol leaves alone</a></h2>
+    <p>How to index. How to rank. How a broker chooses indexers. How a node
+      finds its first peer. What happens when a paid indexer returns nothing.
+      These are where operators compete, or set their own policy.</p>
+    <p>Version 0 also gives you no way to check that a broker returned what
+      its indexers actually sent: once results are merged, nothing proves
+      where each one came from. If you don't trust a broker, your remedy is a
+      different broker.</p>
+  </section>
+
+  <section id="this-brokers-view" class="live">
+    <h2><a href="#this-brokers-view">This broker's view of the network</a></h2>
+    <p class="aside">Live, from this broker. Other brokers may know other
+      indexers.</p>
+    <div id="live" aria-live="polite">
+      <p class="hint">Loading this broker's view…</p>
+    </div>
+  </section>
+
+  <section id="build-against-it">
+    <h2><a href="#build-against-it">Build against it</a></h2>
+    <ul class="points">
+      <li>The specification:
+        <a href="https://github.com/ditta-protocol/ditta-spec/blob/main/protocol.md">protocol.md</a>
+        in <a href="https://github.com/ditta-protocol/ditta-spec">ditta-protocol/ditta-spec</a>,
+        with its <a href="https://github.com/ditta-protocol/ditta-spec/blob/main/protocol.md#change-log">change log</a>.</li>
+      <li>The <a href="https://github.com/ditta-protocol/ditta-spec/tree/main/vectors">test vectors</a>,
+        in the same repository: valid and invalid messages with their
+        canonical bytes, hashes and signatures, for checking an
+        implementation byte for byte.</li>
+      <li><a href="https://github.com/ditta-protocol/ditta-wire-py">ditta-protocol/ditta-wire-py</a>:
+        a Python implementation of the wire format, useful as a reference
+        for serialization and signatures.</li>
+      <li>This broker is an independent implementation, built from the
+        specification and the test vectors alone. It is not the reference
+        implementation.</li>
+      <li id="agent-api">To search the network from a program rather than
+        implement the protocol, use
+        <span id="agent-api-link">this broker's client API</span>.</li>
+      <li>Running an indexer isn't covered here yet; the specification is
+        the starting point.</li>
+    </ul>
+  </section>
+</main>
+<footer class="sitefoot">
+  <a href="/">Search</a>
+  <a href="https://github.com/ditta-protocol/ditta-spec">Specification</a>
+</footer>
+<script>
+/*@@SCRIPT@@*/
+</script>
+</body>
+</html>

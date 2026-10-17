@@ -1,0 +1,644 @@
+/* The broker's page — DESIGN.md is the contract. Components use tokens
+   only; the raw values live here in :root and nowhere else. */
+
+/* -- 4.1 colour: light by default, dark by preference unless the page
+      is forced light, and dark when forced dark ------------------------- */
+:root {
+  color-scheme: light;
+  --plate: #ffffff;
+  --surface: #fafafb;
+  --ink: #232327;
+  --ink-muted: #62626b;
+  --edge: #a4a4ac;
+  --rule: #c3c3c9;
+  --faint: #e0e0e4;
+  --accent: #1f57c9;
+  --accent-ink: #ffffff;
+  --warn: #9a5b00;
+  --fail: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plate: #141417;
+    --surface: #1b1b1f;
+    --ink: #ececf0;
+    --ink-muted: #a2a2ab;
+    --edge: #6c6c75;
+    --rule: #4a4a52;
+    --faint: #2a2a30;
+    --accent: #8fb0ff;
+    --accent-ink: #141417;
+    --warn: #e3a74a;
+    --fail: #f2867d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plate: #141417;
+  --surface: #1b1b1f;
+  --ink: #ececf0;
+  --ink-muted: #a2a2ab;
+  --edge: #6c6c75;
+  --rule: #4a4a52;
+  --faint: #2a2a30;
+  --accent: #8fb0ff;
+  --accent-ink: #141417;
+  --warn: #e3a74a;
+  --fail: #f2867d;
+}
+
+/* -- 4.2 type, 4.3 space, 4.4 lines, 4.5 motion ------------------------- */
+:root {
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    monospace;
+  --t-display: 600 2rem/1.15 var(--sans);
+  --t-name: 600 1.5rem/1.2 var(--sans);
+  --t-title: 500 1.125rem/1.35 var(--sans);
+  --t-body: 400 1rem/1.5 var(--sans);
+  --t-small: 400 0.875rem/1.45 var(--sans);
+  --t-mono: 400 0.8125rem/1.5 var(--mono);
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  --stroke: 0.9px;
+  --r-control: 6px;
+  --target: 44px;
+
+  --d-quick: 120ms;
+  --d-move: 200ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+}
+
+/* -- page --------------------------------------------------------------- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--plate);
+  color: var(--ink);
+  font: var(--t-body);
+}
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding:
+    calc(var(--s-6) + env(safe-area-inset-top))
+    calc(var(--s-4) + env(safe-area-inset-right))
+    calc(var(--s-7) + env(safe-area-inset-bottom))
+    calc(var(--s-4) + env(safe-area-inset-left));
+}
+@media (min-width: 40rem) {
+  main {
+    padding-left: calc(var(--s-6) + env(safe-area-inset-left));
+    padding-right: calc(var(--s-6) + env(safe-area-inset-right));
+  }
+}
+h1 { font: var(--t-name); margin: 0; }
+h2 { font: var(--t-title); margin: 0; }
+p, .hint, .snippet, .cdesc { max-width: 65ch; }
+a { color: var(--accent); }
+.mono { font: var(--t-mono); overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+
+/* -- the one figure on the home view ------------------------------------ */
+#hero {
+  display: flex; flex-direction: column; gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+#hero h1 { margin-top: var(--s-3); }
+#hero-fig { width: 75%; max-width: 22.5rem; align-self: center; }
+#hero-link { align-self: center; font: var(--t-small); color: var(--ink-muted); }
+#hero-link:hover { color: var(--accent); }
+main:has(#results:not(:empty)) #hero-link,
+main:has(#pay:not([hidden])) #hero-link { display: none; }
+/* one loud thing per view: any other block or results retire it */
+main:has(#results:not(:empty)) #hero-fig,
+main:has(#netblock:not(:empty)) #hero-fig,
+main:has(#pay:not([hidden])) #hero-fig { display: none; }
+
+/* -- 6.8 empty and error blocks ----------------------------------------- */
+.block {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s-3); padding: var(--s-6) 0;
+}
+.block .figure { width: 100%; max-width: 22rem; }
+.block h2 { font: var(--t-title); }
+.block p { margin: 0; color: var(--ink-muted); }
+
+/* spaced detail groups, never a middle-dot string */
+.meta { display: flex; flex-wrap: wrap; gap: 0 var(--s-4); }
+
+/* -- 6.7 controls ------------------------------------------------------- */
+input, button, select { font: inherit; color: inherit; }
+button {
+  min-height: var(--target); min-width: var(--target);
+  padding: 0 var(--s-4);
+  border: var(--stroke) solid var(--edge);
+  border-radius: var(--r-control);
+  background: var(--plate);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--d-quick) var(--ease),
+    color var(--d-quick) var(--ease);
+}
+button.primary { border-color: var(--accent); color: var(--accent); }
+button.primary:active { background: var(--accent); color: var(--accent-ink); }
+button.destructive:hover, button.destructive:focus-visible { color: var(--fail); }
+button:disabled {
+  border-color: var(--faint); color: var(--ink-muted); cursor: not-allowed;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=checkbox] {
+  accent-color: var(--accent); width: 18px; height: 18px; margin: 0;
+}
+input[type=search], input[type=text], input[type=number] {
+  min-height: var(--target);
+  border: var(--stroke) solid var(--edge);
+  border-radius: var(--r-control);
+  background: var(--plate);
+  padding: 0 var(--s-3);
+  outline-offset: 2px;
+}
+input[type=search], input[type=text] { flex: 1; min-width: 0; width: 100%; }
+input[type=search]:focus, input[type=text]:focus { background: var(--surface); }
+/* focused fields: the border itself goes bold in the accent, one edge, no
+   second ring around it */
+input[type=search]:focus, input[type=text]:focus, input[type=number]:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+input[type=number] { width: 6.5rem; font-variant-numeric: tabular-nums; }
+input::placeholder { color: var(--ink-muted); }
+details > summary { cursor: pointer; }
+
+/* -- 6.1 search bar ----------------------------------------------------- */
+form { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+form input[type=search] { flex: 1 1 14rem; min-height: 48px; }
+@media (max-width: 22rem) { form button { flex: 1 1 100%; } }
+.knobs {
+  display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4);
+  align-items: center; margin-top: var(--s-3);
+  font: var(--t-small); color: var(--ink-muted);
+}
+/* Exclude Tor, Options and History share one row; the disclosures open
+   their panels under it */
+.toolrow {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0 var(--s-4); margin-top: var(--s-2);
+  font: var(--t-small); color: var(--ink-muted);
+}
+.toolrow .torbox {
+  display: flex; gap: var(--s-2); align-items: center;
+  min-height: var(--target); cursor: pointer; user-select: none;
+}
+.disclose {
+  min-width: 0; padding: 0; border: none; background: none;
+  font: var(--t-small); color: var(--ink);
+  display: inline-flex; align-items: center; gap: var(--s-2);
+}
+.disclose::before {
+  content: ""; width: 6px; height: 6px;
+  border-right: var(--stroke) solid var(--ink-muted);
+  border-bottom: var(--stroke) solid var(--ink-muted);
+  transform: rotate(-45deg); transition: transform var(--d-quick) var(--ease);
+}
+.disclose[aria-expanded="true"]::before { transform: rotate(45deg); }
+.disclose #histcount { color: var(--ink-muted); }
+.panel {
+  border-top: var(--stroke) solid var(--rule);
+  margin-top: var(--s-1); padding-top: var(--s-2);
+}
+#opt-panel { margin-top: var(--s-1); }
+#receipts .hint { margin-top: 0; }
+
+/* in-card actions are words, not boxes: a text link with a 44px tap area */
+.textlink {
+  min-width: 0; padding: 0 var(--s-1); border: none; background: none;
+  font: var(--t-small); color: var(--accent);
+}
+.textlink:hover { text-decoration: underline; }
+.textlink.destructive { color: var(--ink-muted); }
+.textlink.destructive:hover, .textlink.destructive:focus-visible { color: var(--fail); }
+.knobs label {
+  display: flex; gap: var(--s-2); align-items: center;
+  min-height: var(--target); cursor: pointer; user-select: none;
+}
+.hint { font: var(--t-small); color: var(--ink-muted); margin: var(--s-2) 0; }
+
+/* scope chips: one per selected indexer, directly above the input */
+#chips {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s-2); margin-bottom: var(--s-2);
+}
+.chip {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  border: var(--stroke) solid var(--edge); border-radius: var(--r-control);
+  padding-left: var(--s-3); font: var(--t-small); color: var(--ink);
+  animation: chip-in var(--d-move) var(--ease);
+}
+@keyframes chip-in { from { opacity: 0; transform: scale(.96); } }
+.chip.gone { border-style: dashed; }
+.chip .chipstate { color: var(--warn); }
+.chipx {
+  min-width: 36px; min-height: 36px; padding: 0; border: none;
+  background: none; color: var(--ink-muted); font: var(--t-body);
+  position: relative;
+}
+.chipx::after { content: ""; position: absolute; inset: -4px; }  /* 44px */
+.chipx:hover { color: var(--ink); }
+.textbtn {
+  min-width: 0; padding: 0 var(--s-2); border: none; background: none;
+  font: var(--t-small); color: var(--accent);
+}
+.textbtn:hover { text-decoration: underline; }
+#scopeline { font: var(--t-small); color: var(--ink-muted); }
+#scopeline > div { margin-top: var(--s-2); }
+#scopeline .warn { color: var(--warn); }
+#quoteline { margin-top: var(--s-2); }
+#go:disabled { border-color: var(--faint); color: var(--ink-muted); }
+#quoteline:empty { display: none; }
+.statusrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2);
+  margin: var(--s-3) 0;
+}
+#status { flex: 1 1 14rem; min-width: 0; }
+/* nothing to say yet: take no space */
+.statusrow:not(:has(#status:not(:empty))):not(:has(#newsearch:not([hidden]))) {
+  display: none;
+}
+#status { font: var(--t-small); color: var(--ink-muted); }
+#newsearch { margin-left: auto; }
+.spinner {
+  width: 12px; height: 12px; flex: none; border-radius: 50%;
+  border: var(--stroke) solid var(--rule); border-top-color: var(--accent);
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* -- payment: a section of the drawing, not a box ------------------------ */
+#pay {
+  border-top: var(--stroke) solid var(--rule);
+  border-bottom: var(--stroke) solid var(--rule);
+  padding: var(--s-5) 0; margin: var(--s-5) 0;
+}
+#pay .amount {
+  font: var(--t-name); margin-top: var(--s-1);
+  font-variant-numeric: tabular-nums;
+}
+#pay .delta { font: var(--t-small); color: var(--warn); margin: var(--s-2) 0; }
+#pay img {
+  display: block; margin: var(--s-5) auto; width: 220px; height: 220px;
+  background: #fff; padding: var(--s-2);   /* a QR needs a light quiet zone */
+  border: var(--stroke) solid var(--rule); border-radius: var(--r-control);
+}
+.row { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-3) 0; }
+#backup { margin: var(--s-3) 0; }
+#backup summary { font: var(--t-small); color: var(--ink-muted); }
+
+/* -- ask vs. did -------------------------------------------------------- */
+#askdid {
+  border-top: var(--stroke) solid var(--rule);
+  padding: var(--s-3) 0; margin: var(--s-4) 0;
+  font: var(--t-small); color: var(--ink-muted); overflow-wrap: anywhere;
+}
+
+/* -- view tabs ---------------------------------------------------------- */
+.tabs {
+  display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-4) 0 0;
+}
+.tab { color: var(--ink-muted); }
+.tab.on { border-color: var(--accent); color: var(--accent); }
+
+/* -- 6.2 results -------------------------------------------------------- */
+#results { margin-top: var(--s-2); }
+.result {
+  padding: var(--s-5) 0;
+  border-bottom: var(--stroke) solid var(--rule);
+}
+.result.weak { opacity: .6; }
+.result .titlerow {
+  display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2);
+  align-items: baseline;
+}
+.result a, .result .title {
+  font: var(--t-title); color: var(--accent); text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.result a:hover { text-decoration: underline; }
+.result .title.nolink { color: var(--ink-muted); }
+.result .url {
+  font: var(--t-small); color: var(--ink-muted);
+  margin: var(--s-1) 0; overflow-wrap: anywhere;
+}
+.result .snippet {
+  margin: 0; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* attribution: "from" + the indexer's name, a quiet text control */
+.attr { font: var(--t-small); color: var(--ink-muted); margin-top: var(--s-2); }
+.srcname {
+  min-height: 0; min-width: 0; padding: 0; border: none; background: none;
+  font: var(--t-small); font-weight: 500; color: var(--ink);
+  white-space: normal; text-align: left;
+}
+.srcname:hover { text-decoration: underline; }
+/* a 44px hit area without a 44px line */
+.attr .srcname { position: relative; }
+.attr .srcname::after {
+  content: ""; position: absolute; inset: -12px -4px;
+}
+.result.hl, .card.hl { background: var(--surface); }
+#divider {
+  display: flex; align-items: center; gap: var(--s-3);
+  font: var(--t-small); color: var(--ink-muted); margin: var(--s-5) 0;
+}
+#divider::before, #divider::after {
+  content: ""; flex: 1; border-top: var(--stroke) dashed var(--rule);
+}
+.grouphead {
+  margin: var(--s-6) 0 0; padding-bottom: var(--s-2);
+  border-bottom: var(--stroke) solid var(--rule);
+}
+.grouphead .gname { font: var(--t-title); }
+.grouphead .gname .srcname { font: var(--t-title); }
+.grouphead .gcount { font: var(--t-small); color: var(--ink-muted); }
+.grouphead .gmeta {
+  font: var(--t-small); color: var(--ink-muted); overflow-wrap: anywhere;
+}
+#viewtoggle { margin-left: var(--s-2); }
+
+/* -- drill-down: per-indexer raw set ------------------------------------ */
+#drill {
+  border-top: var(--stroke) solid var(--rule);
+  padding: var(--s-4) 0; margin: var(--s-4) 0; font: var(--t-small);
+}
+#drill h2 { margin-bottom: var(--s-2); }
+#drill .raw {
+  display: flex; gap: var(--s-3); padding: var(--s-2) 0;
+  border-top: var(--stroke) solid var(--rule);
+}
+#drill .raw:first-of-type { border-top: none; }
+
+/* -- route map: the fan-out, drawn in the figures' hand -------------------
+   Grey hierarchy (hubs ink, boxes edge, asked paths rule, unasked faint
+   and dashed); the one accent marks only the path under the pointer,
+   focus or selection. Identity is the name, never a hue. */
+#map { margin: var(--s-4) 0 0; }
+#map svg { display: block; max-width: 100%; overflow: visible; }
+#map .edge {
+  fill: none; stroke-width: var(--stroke); vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  transition: stroke var(--d-quick) var(--ease),
+    opacity var(--d-quick) var(--ease);
+}
+#map .edge.on { stroke: var(--edge); }
+#map .edge.off { stroke: var(--rule); stroke-dasharray: 2 4; }
+#map .edge.bad { stroke: var(--fail); stroke-dasharray: 2 4; }
+#map .edge.draw { stroke-dasharray: 1; animation: draw .6s var(--ease) both; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+#map .mnode { cursor: pointer; outline: none; }
+#map .mnode rect {
+  fill: var(--plate); stroke: var(--edge); stroke-width: var(--stroke);
+  vector-effect: non-scaling-stroke;
+  transition: stroke var(--d-quick) var(--ease);
+}
+#map .mnode.off rect { stroke: var(--rule); stroke-dasharray: 2 3; }
+#map .mnode.bad rect { stroke: var(--fail); }
+#map .mnode text.name { fill: var(--ink); font: 500 12.5px var(--sans); }
+#map .mnode.off text.name { fill: var(--ink-muted); }
+#map .mnode text.sub { fill: var(--ink-muted); font: 11px var(--sans); }
+#map .mnode.bad text.sub { fill: var(--fail); }
+#map .mnode .torm { fill: var(--ink-muted); font: 11px var(--sans); }
+#map .hub circle {
+  fill: var(--plate); stroke: var(--ink); stroke-width: var(--stroke);
+  vector-effect: non-scaling-stroke;
+}
+#map .hub text { fill: var(--ink); font: 500 11px var(--sans); }
+#map .hub text.big { font: 600 16px var(--sans); font-variant-numeric: tabular-nums; }
+#map .hub text.cap { fill: var(--ink-muted); font: 11px var(--sans); }
+#map .hub.tap { cursor: pointer; }
+/* the path under attention: accent, everything else recedes */
+#map .edge.hot, #map .edge.sel { stroke: var(--accent); stroke-dasharray: none; }
+#map .mnode.hot rect, #map .mnode.sel rect { stroke: var(--accent); }
+#map .mnode:focus-visible rect { stroke: var(--accent); stroke-width: 2px; }
+#map svg.has-hot .edge:not(.hot), #map svg.has-sel:not(.has-hot) .edge:not(.sel) {
+  opacity: .35;
+}
+#map svg.has-hot .mnode:not(.hot), #map svg.has-sel:not(.has-hot) .mnode:not(.sel) {
+  opacity: .55;
+}
+#map-detail {
+  border-top: var(--stroke) solid var(--rule);
+  margin-top: var(--s-4); padding-top: var(--s-3);
+}
+#map-detail h2 {
+  display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center;
+}
+#map-detail h2 .srcname { font: var(--t-title); }
+.mres {
+  display: flex; gap: var(--s-3); padding: var(--s-3) 0;
+  border-top: var(--stroke) solid var(--rule);
+}
+.mres .result { padding: 0; border: none; min-width: 0; flex: 1; }
+#drill .fate, .mres .fate {
+  flex: none; width: 6.5rem; color: var(--ink-muted); font: var(--t-small);
+}
+#drill .fate.kept, .mres .fate.kept { color: var(--accent); }
+
+/* -- 6.4 indexer cards: sections of the drawing ------------------------- */
+#cards { margin: var(--s-6) 0 0; }
+#cards > h2 {
+  font: var(--t-small); color: var(--ink-muted);
+  padding-bottom: var(--s-2); border-bottom: var(--stroke) solid var(--rule);
+}
+.card {
+  padding: var(--s-6) 0;
+  border-bottom: var(--stroke) solid var(--rule);
+  scroll-margin-top: var(--s-5);
+}
+.card.flash { outline: 2px solid var(--accent); outline-offset: var(--s-2); }
+.card.unreachable .cardname { color: var(--ink-muted); }
+.card .head {
+  display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center;
+}
+.card .cardname {
+  font: var(--t-name); color: var(--ink); margin: 0 0 var(--s-2);
+  overflow-wrap: anywhere;
+}
+.card .cardname.unnamed { color: var(--ink-muted); font-weight: 500; }
+.card .eprow {
+  display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center;
+}
+.card .epval { color: var(--ink-muted); overflow-wrap: anywhere; }
+.card .pkrow {
+  display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center;
+  margin-top: var(--s-2);
+}
+.card .pkfull, .card .pk {
+  font: var(--t-mono); color: var(--ink-muted);
+  overflow-wrap: anywhere; user-select: all; min-width: 0; flex: 1 1 20ch;
+}
+.card .stats {
+  display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5);
+  margin: var(--s-4) 0 0; font: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+.card .stat { display: flex; flex-direction: column; }
+.card .stat dt { color: var(--ink-muted); }
+.card .stat dd { margin: 0; color: var(--ink); }
+.card .cdesc { margin: var(--s-4) 0 0; }
+.card .searchthis {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s-1) var(--s-3); margin-top: var(--s-3);
+}
+.card .searchthis label {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: var(--target); cursor: pointer;
+}
+.card .searchthis input:disabled + * , .card .searchthis label:has(:disabled) {
+  color: var(--ink-muted); cursor: not-allowed;
+}
+.card .searchthis .price, .card .searchthis .why {
+  font: var(--t-small); color: var(--ink-muted);
+}
+.card .cbasis {
+  font: var(--t-small); color: var(--ink-muted); margin-top: var(--s-1);
+}
+.card .reacherr {
+  font: var(--t-small); color: var(--fail); margin-top: var(--s-1);
+  overflow-wrap: anywhere;
+}
+.card .reacherr.slow { color: var(--warn); }
+.cardstate { margin-left: auto; font: var(--t-small); color: var(--ink-muted); }
+.card[data-stage=failed] .cardstate { color: var(--fail); }
+.card[data-stage=responded] .cardstate,
+.card[data-stage=paid] .cardstate { color: var(--accent); }
+
+/* status words in small outlined pills; colour supports the word */
+.reach, .tor {
+  display: inline-flex; align-items: center;
+  font: var(--t-small); line-height: 1.3;
+  border: var(--stroke) solid var(--edge); border-radius: var(--r-control);
+  padding: 0 var(--s-2); color: var(--ink-muted); background: none;
+}
+.reach.ok { border-color: var(--accent); color: var(--accent); }
+.reach.slow { border-color: var(--warn); color: var(--warn); }
+.reach.bad { border-color: var(--fail); color: var(--fail); }
+
+/* detail pane: name history + vocabulary */
+.detailpane { margin-top: 0; }
+.detailtabs { display: flex; flex-wrap: wrap; gap: 0 var(--s-4); margin-left: calc(-1 * var(--s-1)); }
+.detailtab.on { color: var(--ink); font-weight: 500; }
+.detailbody { margin-top: var(--s-3); }
+/* 6.6 name history: plain rows, newest first */
+.histlist { list-style: none; margin: 0; padding: 0; }
+.histlist li { padding: var(--s-2) 0; border-top: var(--stroke) solid var(--rule); }
+.histlist li:first-child { border-top: none; }
+.histlist .hdates { font: var(--t-small); color: var(--ink-muted); }
+.tag {
+  font: var(--t-small); color: var(--ink-muted);
+  border: var(--stroke) solid var(--edge); border-radius: var(--r-control);
+  padding: 0 var(--s-2); margin-left: var(--s-1);
+}
+
+/* -- 6.5 vocabulary: term, share, evidence — no bars ---------------------- */
+.tablewrap { overflow-x: auto; }
+.vocab {
+  width: 100%; border-collapse: collapse; font: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+.vocab td, .vocab th {
+  padding: var(--s-2) var(--s-3) var(--s-2) 0; text-align: left;
+  border-top: var(--stroke) solid var(--rule);
+}
+.vocab th { color: var(--ink-muted); font-weight: 400; border-top: none; }
+.vocab .term { overflow-wrap: anywhere; }
+.vocab .num { text-align: right; white-space: nowrap; }
+.vocab .ev { color: var(--accent); white-space: nowrap; }
+
+/* -- 6.3 recent searches, unredeemed: in the column, rule-separated ------ */
+#side { display: flex; flex-direction: column; gap: var(--s-4); margin: var(--s-4) 0 0; }
+#side:not(:has(> :not([hidden]))) { display: none; }
+#pendinglist, #receipts { font: var(--t-small); }
+#pendinglist h2, #receipts h2 {
+  font: var(--t-small); font-weight: 500; color: var(--ink);
+}
+#pendinglist .hint { margin: var(--s-1) 0 var(--s-2); }
+.pend, .rcpt {
+  border-top: var(--stroke) solid var(--rule); padding: var(--s-3) 0;
+}
+.pend .pq, .rcpt .pq { font: var(--t-body); overflow-wrap: anywhere; }
+.rcpt.on .pq { font-weight: 500; }
+.pend .pmeta, .rcpt .pmeta {
+  color: var(--ink-muted); margin: var(--s-1) 0;
+  font-variant-numeric: tabular-nums;
+}
+.pend .row, .rcpt .row { margin: 0; gap: 0 var(--s-4); margin-left: calc(-1 * var(--s-1)); }
+#histclear { margin-top: var(--s-3); }
+
+/* the site footer, shared by both pages */
+.sitefoot {
+  max-width: 44rem; margin: 0 auto;
+  padding: var(--s-5) calc(var(--s-4) + env(safe-area-inset-right))
+    calc(var(--s-6) + env(safe-area-inset-bottom))
+    calc(var(--s-4) + env(safe-area-inset-left));
+  border-top: var(--stroke) solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5);
+  font: var(--t-small);
+}
+.sitefoot a { color: var(--ink-muted); }
+.sitefoot a:hover { color: var(--ink); }
+@media (min-width: 40rem) {
+  .sitefoot {
+    padding-left: calc(var(--s-6) + env(safe-area-inset-left));
+    padding-right: calc(var(--s-6) + env(safe-area-inset-right));
+  }
+}
+
+/* -- figures: our labeled diagrams (figures.js) ----------------------------
+   One cast, the grey hierarchy, the accent only on what moves or matters. */
+svg.fig { display: block; width: 100%; height: auto; overflow: visible; }
+.fig .ln {
+  fill: none; stroke: var(--edge); stroke-width: 1;
+  vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round;
+}
+.fig .ln.faint { stroke: var(--rule); }
+.fig .ln.off { stroke: var(--rule); stroke-dasharray: 3 3; }
+.fig .ln.acc, .fig .ln.ok { stroke: var(--accent); }
+.fig .ln.x { stroke: var(--fail); }
+.fig .ln.sig { stroke: var(--ink-muted); }
+.fig .node rect { fill: var(--plate); stroke: var(--edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fig .node.hub rect { stroke: var(--ink); }
+.fig .node.dim { opacity: .45; }
+.fig .card rect { fill: var(--surface); stroke: var(--edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fig .pill rect { fill: var(--plate); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fig .pill .ln { stroke: var(--accent); }
+.fig .pill.bad rect, .fig .pill.bad .ln { stroke: var(--fail); }
+.fig text { font-family: var(--sans); fill: var(--ink); }
+.fig .nm { font-size: 12px; font-weight: 500; }
+.fig .lbl { font-size: 11px; fill: var(--ink-muted); }
+.fig .pill .lbl { fill: var(--ink); }
+.fig .sm { font-size: 10px; fill: var(--ink-muted); }
+.fig .mono { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-muted); }
+.fig .amt { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fig .bolt { fill: var(--ink); }
+.fig .bolt.hot { fill: var(--accent); }
+.fig .qrf { fill: none; stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fig .qrc { fill: var(--ink); }
+.fig .mover { fill: var(--accent); opacity: 0; }
+.fig .moving { opacity: 0; }
+.fig .moving rect { stroke: var(--accent); }
+
+/* -- 4.5 reduced motion: opacity changes only ---------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-property: opacity !important;
+  }
+}
