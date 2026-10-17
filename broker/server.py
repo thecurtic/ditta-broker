@@ -180,7 +180,7 @@ class BrokerHTTPServer:
             entry = {"pricing": "static",
                      "options": self.cfg.entry_pricing}
         return {
-            "name": "fedsearch-broker",
+            "name": "ditta-broker",
             "protocol": "ditta/v0",
             "roles": ["broker"],
             "pubkey": self.node.identity.pubkey,

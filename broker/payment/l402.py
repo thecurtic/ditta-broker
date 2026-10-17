@@ -80,7 +80,7 @@ def decode_claims(macaroon_b64: str) -> dict | None:
 class L402Receiver:
     def __init__(self, secret: bytes, db_path: str | Path,
                  minter: InvoiceMinter, token_ttl: int = 86400):
-        self._secret = hashlib.sha256(b"fedsearch-l402:" + secret).digest()
+        self._secret = hashlib.sha256(b"ditta-broker-l402:" + secret).digest()
         db_path = Path(db_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._con = sqlite3.connect(db_path, check_same_thread=False)

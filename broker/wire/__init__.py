@@ -1,4 +1,4 @@
-"""Independent implementation of the federated search protocol wire format.
+"""Independent implementation of the DITTA wire format.
 
 Built against the specification (see ``spec/protocol.md``, revision e5aa7f8)
 and its conformance vectors alone — deliberately not against any other

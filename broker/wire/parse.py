@@ -1,4 +1,4 @@
-"""Strict JSON parsing for the federated search protocol.
+"""Strict JSON parsing for DITTA, the federated search protocol.
 
 Enforces the Encoding-section rules that are invisible after ordinary JSON
 parsing: a stock parser silently picks one of two duplicate keys, rounds

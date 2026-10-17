@@ -1,5 +1,5 @@
 [project]
-name = "fedsearch-broker"
+name = "ditta-broker"
 version = "0.0.1"
 description = "An independent broker for DITTA, the federated web search protocol with Lightning payment"
 readme = "README.md"

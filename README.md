@@ -1,4 +1,4 @@
-# fedsearch-broker
+# DITTA-broker
 
 An independent broker for [DITTA](spec/protocol.md), the federated web
 search protocol with Lightning payment (version 0, published at
@@ -29,7 +29,7 @@ Everything runs in free mode with no Lightning node at all.
 Python 3.10 or newer.
 
 ```sh
-git clone <this repository> && cd fedsearch-broker
+git clone https://github.com/thecurtic/ditta-broker.git && cd ditta-broker
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e '.[dev]'
 python3 -m pytest -q

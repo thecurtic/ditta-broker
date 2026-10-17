@@ -1,11 +1,11 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
-const STORE_PREFIX = "fedsearch.pending.";
-const RCPT_PREFIX = "fedsearch.receipt.";
-const VIEW_KEY = "fedsearch.view";
-const HIST_OPEN_KEY = "fedsearch.historyopen";
-const NEW_KEY = "fedsearch.newsearch"; // ms: "New search" last pressed
-const DRAFT_KEY = "fedsearch.draft";   // sessionStorage: the unsent query
+const STORE_PREFIX = "ditta-broker.pending.";
+const RCPT_PREFIX = "ditta-broker.receipt.";
+const VIEW_KEY = "ditta-broker.view";
+const HIST_OPEN_KEY = "ditta-broker.historyopen";
+const NEW_KEY = "ditta-broker.newsearch"; // ms: "New search" last pressed
+const DRAFT_KEY = "ditta-broker.draft";   // sessionStorage: the unsent query
 const REOPEN_MS = 30 * 60 * 1000;      // fresh visits reopen results this new
 let peersData = null;      // /api/peers payload
 let lastQuote = null;      // {quote_msat, indexers_considered, stats_age_s}

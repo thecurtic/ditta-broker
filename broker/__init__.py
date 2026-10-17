@@ -1,4 +1,4 @@
-"""A broker for the federated search protocol.
+"""A broker for DITTA, the federated search protocol.
 
 A broker accepts a query, decides which indexers to ask, pays them, merges
 what comes back, and returns results. It speaks the protocol defined in
