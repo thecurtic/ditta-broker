@@ -187,6 +187,8 @@ def test_l402_flow_end_to_end_with_receipt(paid_rig):
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "", "quote_msat": 1500})
     assert r.json()["unsettled"] is True
 
@@ -197,6 +199,8 @@ def test_l402_flow_end_to_end_with_receipt(paid_rig):
         "request_b64": base64.b64encode(
             json.dumps(tampered).encode()).decode(),
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "", "quote_msat": 1500})
     assert "not issued for the pending request" in r.json()["error"]
 
@@ -214,6 +218,8 @@ def test_l402_flow_end_to_end_with_receipt(paid_rig):
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "", "quote_msat": 1500})
     data = r.json()
     assert [x["url"] for x in data["results"]] == [
@@ -233,6 +239,8 @@ def test_l402_flow_end_to_end_with_receipt(paid_rig):
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "", "quote_msat": 1500})
     again = r.json()
     assert again["payment_required"]
@@ -256,17 +264,23 @@ def test_pasted_preimage_is_the_fallback_when_the_node_saw_nothing(
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "ab" * 32, "quote_msat": 1500})
     assert "payment hash" in r.json()["error"]
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": "not hex", "quote_msat": 1500})
     assert "64 hex" in r.json()["error"]
 
     r = httpx.post(paid_stack + "/api/complete", timeout=10, json={
         "request_b64": challenge["request_b64"],
         "macaroon": challenge["macaroon"],
+        "payment_hash": challenge["payment_hash"],
+        "request_sha256": challenge["request_sha256"],
         "preimage": preimage, "quote_msat": 1500})
     assert [x["url"] for x in r.json()["results"]] == [
         "https://example.org/a", "https://example.org/b"]
@@ -288,12 +302,16 @@ def test_site_without_a_secret_says_so_instead_of_replaying(tmp_path):
         r = httpx.post(base + "/api/complete", timeout=10, json={
             "request_b64": challenge["request_b64"],
             "macaroon": challenge["macaroon"],
+            "payment_hash": challenge["payment_hash"],
+            "request_sha256": challenge["request_sha256"],
             "preimage": "", "quote_msat": 1500})
         assert "site_secret" in r.json()["error"]
         preimage = MockPayProvider().pay(challenge["invoice"], 2000)
         r = httpx.post(base + "/api/complete", timeout=10, json={
             "request_b64": challenge["request_b64"],
             "macaroon": challenge["macaroon"],
+            "payment_hash": challenge["payment_hash"],
+            "request_sha256": challenge["request_sha256"],
             "preimage": preimage, "quote_msat": 1500})
         assert len(r.json()["results"]) == 2
     finally:
@@ -364,6 +382,8 @@ def test_onion_exclusion_reprices_and_reroutes(tmp_path):
         r = httpx.post(base + "/api/complete", timeout=10, json={
             "request_b64": challenge["request_b64"],
             "macaroon": challenge["macaroon"],
+            "payment_hash": challenge["payment_hash"],
+            "request_sha256": challenge["request_sha256"],
             "preimage": "", "quote_msat": 1500})
         data = r.json()
         assert [x["url"] for x in data["results"]] == \
@@ -443,6 +463,8 @@ def test_hostile_results_still_sanitized_through_paid_flow(tmp_path):
         r = httpx.post(base + "/api/complete", timeout=10, json={
             "request_b64": challenge["request_b64"],
             "macaroon": challenge["macaroon"],
+            "payment_hash": challenge["payment_hash"],
+            "request_sha256": challenge["request_sha256"],
             "preimage": "", "quote_msat": 700})
         data = r.json()
         assert "results" in data

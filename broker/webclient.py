@@ -1,9 +1,13 @@
 """The broker's human face: a search page that teaches the L402 flow.
 
-Run as its own process (``python -m broker.webclient [broker.yaml]``) and
-exposed separately from the broker's protocol face — e.g. through a
-Cloudflare tunnel. The payment flow is deliberately manual, because showing
-the machinery is the point:
+A client of the broker's /client API, not a part of the broker: it reaches
+the broker over HTTP only and imports nothing of it but the client library
+(``tests/test_frontends.py`` enforces that), so an operator who wants their
+own site leaves this off (``webclient.enabled``, default false) and builds
+against the same API. The broker starts it when enabled; ``python -m broker
+web`` runs it alone. Expose it separately from the broker's protocol face —
+e.g. through a Cloudflare tunnel. The payment flow is deliberately visible,
+because showing the machinery is the point:
 
 1. As the user types, the button shows a live quote in sats — the broker's
    ``/quote`` (routing evaluated early over cached announcements and
@@ -14,11 +18,12 @@ the machinery is the point:
 3. The user pays on their phone. The page polls the broker's settlement
    status; the broker minted the invoice on its own node and sees it
    settle, so the moment it does the page proceeds by itself — nothing to
-   paste. This is a privilege of the broker's own site, vouched for by a
-   shared ``site_secret``; agents on the same client API present the
-   preimage as L402 says. Pasting the preimage survives here only as the
-   fallback, folded away under "Paid, but nothing happened?", for a site
-   without the secret or a node that has not witnessed settlement (yet).
+   paste. This is the trusted front end's privilege, granted by the
+   operator's ``site_secret`` (any front end given the key gets the same);
+   agents on the same client API present the preimage as L402 says. Pasting
+   the preimage survives here only as the fallback, folded away under "Paid,
+   but nothing happened?", for a site without the secret or a node that has
+   not witnessed settlement (yet).
 4. The ORIGINAL request bytes are replayed byte-identically with the
    macaroon attached — and the preimage slot empty, or filled from the
    fallback — never rebuilt. The browser holds the bytes; they persist in
@@ -66,23 +71,22 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .messages import new_request_id
-from .payment.invoice import MockInvoiceMinter
-from .payment.l402 import decode_claims
-from .wire import ParseError, ValidationError, accept
+# A client of the broker's /client API, never a part of the broker: only
+# the client library (and the standalone wire library) may be imported.
+from .clientlib import (ALLOWED_SCHEMES as _ALLOWED_SCHEMES, BrokerAPI,
+                        as_int as _as_int, header, hex64 as _hex64,
+                        new_request_id, parse_challenge, preimage_matches,
+                        sanitize_results, well_formed_preimage)
 
-_ALLOWED_SCHEMES = ("http://", "https://")
 _MAX_QUERY_BYTES = 1024
 _MAX_BODY_BYTES = 65536
 _MAX_SCOPE = 64
 _REASON_RE = re.compile(r"^[a-z_]{1,32}$")
-_PREIMAGE_RE = re.compile(r"^[0-9a-f]{64}$")
-_CHALLENGE_RE = re.compile(
-    r'(?:L402|LSAT)\s+macaroon="([^"]+)",\s*invoice="([^"]+)"')
 
 
 @dataclass(frozen=True)
 class WebClientConfig:
+    enabled: bool = False          # off unless the operator turns it on
     listen_host: str = "127.0.0.1"
     listen_port: int = 8420
     broker_url: str = "http://127.0.0.1:8410"
@@ -92,63 +96,21 @@ class WebClientConfig:
     # bound is one Tor circuit's timeout (60s), not a sum — but a client
     # that gives up before its broker finishes strands a paid redemption.
     timeout: float = 120.0
-    # Shared with the broker's receive.site_secret: it is what lets THIS
-    # site redeem with the preimage slot empty, on the broker's own node's
-    # witness of settlement. Unset: the page falls back to the paste.
+    # The broker's trusted front end key (receive.site_secret there): it
+    # lets THIS site redeem with the preimage slot empty, on the broker's
+    # own node's witness of settlement. Any front end the operator gives
+    # the key gets the same; unset, the page falls back to the paste.
     site_secret: str = ""
 
 
-def load_webclient_config(path: str | None = None) -> WebClientConfig:
-    import os
-
-    import yaml
-
-    path = path or os.environ.get("BROKER_CONFIG", "broker.yaml")
-    p = Path(path)
-    raw = (yaml.safe_load(p.read_text()) or {}) if p.exists() else {}
-    return WebClientConfig(**(raw.get("webclient") or {}))
-
-
-def _as_int(v) -> int:
-    return v if isinstance(v, int) and not isinstance(v, bool) else 0
-
-
-def _hex64(v) -> bool:
-    return isinstance(v, str) and bool(re.fullmatch(r"[0-9a-f]{64}", v))
-
-
-def sanitize_results(results: list[dict]) -> list[dict]:
-    """Keep only display-safe fields, and only URLs a browser may follow.
-
-    A result whose URL is not plain http(s) is kept but stripped of its link:
-    the indexer's relevance judgment survives, its unfollowable URL does not.
-    ``sources`` (which indexer served it, at what rank) passes through a
-    whitelist of validated pubkeys and integer ranks.
-    """
-    out = []
-    for r in results:
-        if not isinstance(r, dict):
-            continue
-        url = r.get("url", "")
-        entry = {
-            "title": r.get("title", "") if isinstance(r.get("title"), str)
-            else "",
-            "snippet": r.get("snippet", "")
-            if isinstance(r.get("snippet"), str) else "",
-            "url": url if isinstance(url, str)
-            and url.startswith(_ALLOWED_SCHEMES) else None,
-        }
-        sources = [{"pubkey": x["pubkey"], "rank": _as_int(x.get("rank"))}
-                   for x in (r.get("sources") or [])[:10]
-                   if isinstance(x, dict) and _hex64(x.get("pubkey"))]
-        if sources:
-            entry["sources"] = sources
-        if "weak" in r:
-            entry["weak"] = r.get("weak") is True
-        if isinstance(r.get("confidence"), (int, float)):
-            entry["confidence"] = float(r["confidence"])
-        out.append(entry)
-    return out
+def config_from(section: dict, broker_url: str | None = None
+                ) -> WebClientConfig:
+    """A WebClientConfig from the ``webclient:`` config section;
+    ``broker_url`` is the default when the section names none."""
+    raw = dict(section or {})
+    if broker_url and not raw.get("broker_url"):
+        raw["broker_url"] = broker_url
+    return WebClientConfig(**raw)
 
 
 def _clean_pubkeys(v) -> list[str] | None:
@@ -289,18 +251,6 @@ def _sanitize_outcome(o: dict) -> dict:
     return out
 
 
-def invoice_amount_msat(invoice: str) -> int | None:
-    mock = MockInvoiceMinter.amount_of(invoice)
-    if mock is not None:
-        return mock
-    try:
-        from .payment.nwc import bolt11_amount_msat
-
-        return bolt11_amount_msat(invoice)
-    except Exception:
-        return None
-
-
 def qr_data_uri(text: str) -> str:
     import segno
 
@@ -313,21 +263,13 @@ class WebClient:
 
     def __init__(self, cfg: WebClientConfig):
         self.cfg = cfg
+        self._broker = BrokerAPI(cfg.broker_url, timeout=cfg.timeout)
 
     def _post_broker(self, path: str, body: bytes, headers: dict):
-        import httpx
-
-        resp = httpx.post(self.cfg.broker_url.rstrip("/") + path,
-                          content=body, headers=headers,
-                          timeout=self.cfg.timeout)
-        return resp.status_code, dict(resp.headers), resp.content
+        return self._broker.post(path, body, headers)
 
     def _get_broker(self, path: str):
-        import httpx
-
-        resp = httpx.get(self.cfg.broker_url.rstrip("/") + path,
-                         timeout=self.cfg.timeout)
-        return resp.status_code, dict(resp.headers), resp.content
+        return self._broker.get(path)
 
     # -- quote -------------------------------------------------------------
 
@@ -549,7 +491,7 @@ class WebClient:
             "/client/search", request_bytes,
             {"Content-Type": "application/json"})
         if status == 402:
-            payload = self._challenge_payload(headers, request_bytes,
+            payload = self._challenge_payload(headers, body, request_bytes,
                                               quote_msat)
             payload["ask"] = envelope
             return payload
@@ -558,11 +500,17 @@ class WebClient:
     # -- complete (step 4: byte-identical replay) --------------------------
 
     def complete(self, request_b64: str, macaroon: str, preimage: str,
-                 quote_msat: int) -> dict:
+                 quote_msat: int, payment_hash: str = "",
+                 request_sha256: str = "") -> dict:
         """Replay the held bytes. ``preimage`` empty means: redeem on the
         broker's own witness of settlement (checked first, so an unpaid
         invoice is never replaced by a fresh challenge); non-empty is the
-        fallback paste, verified locally against the payment hash."""
+        fallback paste, verified locally against the payment hash.
+
+        ``payment_hash`` and ``request_sha256`` are what the 402 told the
+        page when the search was first sent; the replay is checked against
+        both, so a damaged pending record never spends a paid credential's
+        retry on the wrong bytes."""
         try:
             request_bytes = base64.b64decode(request_b64, validate=True)
         except Exception:
@@ -576,22 +524,20 @@ class WebClient:
             assert isinstance(request_id, str) and request_id
         except Exception:
             return {"error": "pending bytes are not a valid search"}
+        if not _hex64(payment_hash) or not _hex64(request_sha256) \
+                or not macaroon:
+            return {"error": "the pending payment is incomplete — start "
+                             "the search again"}
+        if hashlib.sha256(request_bytes).hexdigest() != request_sha256:
+            return {"error": "this payment was not issued for the pending "
+                             "request — the bytes must replay unchanged"}
 
         preimage = (preimage or "").strip().lower()
-        if preimage and not _PREIMAGE_RE.match(preimage):
+        if preimage and not well_formed_preimage(preimage):
             return {"error": "the preimage must be 64 hex characters — copy "
                              "it from the payment details in your wallet"}
-
-        # The macaroon must bind to exactly these bytes and this payment.
-        claims = decode_claims(macaroon)
-        if claims is None:
-            return {"error": "the macaroon is unreadable"}
-        if claims.get("b") != hashlib.sha256(request_bytes).hexdigest():
-            return {"error": "this macaroon was not issued for the pending "
-                             "request — the bytes must replay unchanged"}
         if preimage:
-            if hashlib.sha256(bytes.fromhex(preimage)).hexdigest() \
-                    != claims.get("h"):
+            if not preimage_matches(preimage, payment_hash):
                 return {"error": "that preimage does not match this "
                                  "invoice's payment hash — check you copied "
                                  "the preimage (not the payment hash) of "
@@ -600,7 +546,7 @@ class WebClient:
             return {"error": "this site has no site_secret shared with its "
                              "broker, so it cannot collect on the broker's "
                              "word — paste the preimage from your wallet"}
-        elif not self.pending_status(str(claims.get("h") or ""))["settled"]:
+        elif not self.pending_status(payment_hash)["settled"]:
             # Replaying an unpaid token would earn a fresh 402 and replace
             # the invoice the person may be paying this second.
             return {"unsettled": True,
@@ -616,7 +562,7 @@ class WebClient:
         if status == 402:
             # The token did not redeem (expired or spent): a fresh challenge,
             # never a dead end.
-            payload = self._challenge_payload(headers, request_bytes,
+            payload = self._challenge_payload(headers, body, request_bytes,
                                               quote_msat)
             payload["ask"] = envelope
             payload["note"] = ("the previous token did not redeem — a fresh "
@@ -626,24 +572,22 @@ class WebClient:
 
     # -- shared ------------------------------------------------------------
 
-    def _challenge_payload(self, headers: dict, request_bytes: bytes,
-                           quote_msat: int) -> dict:
-        raw = headers.get("WWW-Authenticate") \
-            or headers.get("www-authenticate", "")
-        m = _CHALLENGE_RE.search(raw)
-        if not m:
-            return {"error": "402 without a parseable L402 challenge"}
-        macaroon, invoice = m.group(1), m.group(2)
-        claims = decode_claims(macaroon) or {}
+    def _challenge_payload(self, headers: dict, body: bytes,
+                           request_bytes: bytes, quote_msat: int) -> dict:
+        ch = parse_challenge(headers, body)
+        if ch is None or ch["payment_hash"] is None:
+            return {"error": "402 without a usable L402 challenge"}
         return {
             "payment_required": True,
-            "invoice": invoice,
-            "macaroon": macaroon,
-            "payment_hash": claims.get("h"),
-            "amount_msat": invoice_amount_msat(invoice),
+            "invoice": ch["invoice"],
+            "macaroon": ch["macaroon"],
+            "payment_hash": ch["payment_hash"],
+            "amount_msat": ch["amount_msat"],
+            "invoice_expires": ch["invoice_expires"],
             "quote_msat": quote_msat,
             "request_b64": base64.b64encode(request_bytes).decode(),
-            "qr": qr_data_uri(invoice),
+            "request_sha256": hashlib.sha256(request_bytes).hexdigest(),
+            "qr": qr_data_uri(ch["invoice"]),
         }
 
     def _final(self, status: int, body: bytes, request_id: str,
@@ -675,8 +619,7 @@ class WebClient:
         outcome = data.get("outcome")
         if isinstance(outcome, dict):
             out["outcome"] = _sanitize_outcome(outcome)
-        retained = (headers or {}).get("X-Credential-Retained") \
-            or (headers or {}).get("x-credential-retained")
+        retained = header(headers or {}, "X-Credential-Retained")
         if retained == "1":
             # No indexer answered, so the broker did NOT consume the
             # credential — the pending payment must survive for a retry.
@@ -872,7 +815,9 @@ class WebClientServer:
                             str(data.get("request_b64") or ""),
                             str(data.get("macaroon") or ""),
                             str(data.get("preimage") or ""),
-                            quote_msat))
+                            quote_msat,
+                            str(data.get("payment_hash") or ""),
+                            str(data.get("request_sha256") or "")))
                         return
                 except Exception as e:
                     self._json({"error": f"broker unreachable: {e}"})
@@ -905,18 +850,8 @@ def _html_escape(s: str) -> str:
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def main(argv: list[str] | None = None) -> int:
-    argv = sys.argv[1:] if argv is None else argv
-    cfg = load_webclient_config(argv[0] if argv else None)
-    server = WebClientServer(cfg)
-    print(f"web client on {cfg.listen_host}:{cfg.listen_port} -> "
-          f"broker {cfg.broker_url}", flush=True)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        server.shutdown()
-    return 0
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    # Kept for existing service files: the same as ``python -m broker web``.
+    from .__main__ import main as _main
+
+    sys.exit(_main(["web", *sys.argv[1:]]))

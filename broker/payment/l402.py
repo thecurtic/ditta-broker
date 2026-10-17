@@ -96,10 +96,14 @@ class L402Receiver:
                   bound_pubkey: str | None = None) -> dict:
         """Mint an invoice and a token; return the challenge's parts.
 
-        Returns ``{"header", "macaroon", "invoice", "expiry"}`` — the header
-        is the WWW-Authenticate value, and macaroon/invoice/expiry are what
-        the signed payment challenge body duplicates (Payment profile: the
+        Returns ``{"header", "macaroon", "invoice", "expiry",
+        "payment_hash", "amount_msat", "invoice_expires"}`` — the header is
+        the WWW-Authenticate value, and macaroon/invoice/expiry are what the
+        signed payment challenge body duplicates (Payment profile: the
         expiry MUST be recorded in the macaroon and stated in the body).
+        ``expiry`` is when the credential lapses; ``invoice_expires`` is the
+        end of the settlement window, after which the invoice cannot be
+        paid at all.
 
         ``body_sha256`` (hex) binds the token to the exact request bytes it
         was minted for: redemption then requires the byte-identical retry the
@@ -110,7 +114,8 @@ class L402Receiver:
         any other key gets a fresh 402.
         """
         payment_hash, bolt11 = self._minter.mint(amount_msat, "ditta query")
-        expiry = int(time.time()) + self._ttl
+        now = int(time.time())
+        expiry = now + self._ttl
         claims = {
             "h": payment_hash,
             "t": pricing_type,
@@ -131,6 +136,9 @@ class L402Receiver:
             "macaroon": token,
             "invoice": bolt11,
             "expiry": expiry,
+            "payment_hash": payment_hash,
+            "amount_msat": amount_msat,
+            "invoice_expires": now + self._minter.invoice_expiry,
         }
 
     # -- redemption --------------------------------------------------------

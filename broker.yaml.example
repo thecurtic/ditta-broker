@@ -24,16 +24,38 @@ max_results_limit: 50
 reannounce_interval: 3600
 refresh_interval: 600
 
-# --- the thin web client (a separate process: python -m broker.webclient) ---
-# The human entrance — expose THIS (e.g. through a Cloudflare tunnel), not
-# the broker's protocol port. It speaks the broker's /client API.
-webclient:
-  listen_host: "127.0.0.1"
-  listen_port: 8420
-  broker_url: "http://127.0.0.1:8410"
-  title: "Search"
-  max_results: 10
-  # site_secret: "<long random string>"   # same value as receive.site_secret
+# --- Front ends: clients of the /client API, each OFF unless enabled -------
+# The broker starts every enabled front end beside itself (each on its own
+# port, reaching the broker over HTTP); `python -m broker web` or
+# `python -m broker mcp` runs one alone, e.g. on another host. broker_url
+# defaults to this broker's own listen address.
+#
+# The web client: the search page and /protocol. The human entrance —
+# expose THIS (e.g. through a Cloudflare tunnel), not the broker's port.
+# Leave it off to build your own site against the same /client API.
+#
+# webclient:
+#   enabled: true
+#   listen_host: "127.0.0.1"
+#   listen_port: 8420
+#   title: "Search"
+#   max_results: 10
+#   site_secret: "<long random string>"  # the trusted front end key; same
+#                                        # value as receive.site_secret
+#
+# The MCP server: lets agents search through this broker (tools: search,
+# redeem, quote, list_indexers; Streamable HTTP at /mcp). It holds no
+# wallet: a paid search hands the agent the invoice, its amount and its
+# settlement deadline, and redeem collects with the agent's preimage.
+# When enabled, GET / on the broker tells agents where it is.
+#
+# mcp:
+#   enabled: true
+#   listen_host: "127.0.0.1"
+#   listen_port: 8430
+#   public_url: "https://search.example.org/mcp"  # what GET / advertises;
+#                                                 # default: listen address
+#   allowed_origins: []                  # browser origins allowed to call it
 
 # --- Outcome store -----------------------------------------------------------
 # Every routed query lands in data/outcomes.db: one append-only row per
@@ -159,12 +181,13 @@ webclient:
 # — redemption then serves the prefetched results. head_start: false
 # disables only the early routing.
 #
-# site_secret: shared with the web client (webclient.site_secret below) and
-# nobody else. It is what lets this broker's OWN site redeem with the
+# site_secret: the trusted front end key. Give it to the front ends you run
+# (webclient.site_secret above, or your own site, as an X-Site-Secret
+# header) and nobody else. A front end holding it may redeem with the
 # preimage slot empty, on the node's witness of settlement — pay, and the
-# results appear. Agents on /client/search are not witnessed: they present
-# the preimage as L402 says. Unset, the site falls back to the pasted
-# preimage. Any long random string; keep it out of the page and of logs.
+# results appear. Agents and the MCP server never hold it: they present the
+# preimage as L402 says. Unset, every client presents the preimage. Any
+# long random string; keep it out of pages and logs.
 #
 # receive:
 #   pricing_mode: quoted
@@ -173,7 +196,7 @@ webclient:
 #   head_start: true
 #   head_start_poll_seconds: 2             # settlement poll cadence
 #   head_start_ttl_seconds: 3600           # forget unpaid challenges after
-#   site_secret: "<long random string>"    # same value as webclient.site_secret
+#   site_secret: "<long random string>"    # trusted front end key
 #
 #   Minter, pick ONE. lnbits (wallet-scoped invoice key — pairs with the
 #   lnbits pay provider below so both halves live in one wallet; note

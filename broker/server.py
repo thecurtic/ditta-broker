@@ -198,10 +198,13 @@ class BrokerHTTPServer:
                                   "exclude_tor?, pubkeys?}. An unpaid ask "
                                   "gets HTTP "
                                   "402: an L402 challenge header plus a "
-                                  "signed payment_challenge body. Pay the "
-                                  "invoice, then retry the byte-identical "
-                                  "body with Authorization: L402 "
-                                  "<macaroon>:<preimage>. Response: "
+                                  "signed payment_challenge body, plus "
+                                  "X-Payment-Hash, X-Invoice-Amount-Msat "
+                                  "and X-Invoice-Expires (unix seconds, "
+                                  "the end of the settlement window). Pay "
+                                  "the invoice, then retry the "
+                                  "byte-identical body with Authorization: "
+                                  "L402 <macaroon>:<preimage>. Response: "
                                   "{request_id, results[], scope, "
                                   "charged_msat} with per-result sources[] "
                                   "attribution.",
@@ -226,6 +229,11 @@ class BrokerHTTPServer:
             },
             "entry": {**entry,
                       "max_results_limit": self.cfg.max_results_limit},
+            **({"mcp": {"url": self.cfg.mcp_url,
+                        "transport": "streamable-http",
+                        "tools": ["search", "redeem", "quote",
+                                  "list_indexers"]}}
+               if self.cfg.mcp_url else {}),
             "scope": {
                 "pubkeys": "optional list of indexer pubkeys (hex) to "
                            "narrow which indexers are asked; absent or "
@@ -659,7 +667,7 @@ class BrokerHTTPServer:
             if not self.node.entry_redeemable(
                     auth, "per_query", body_hash, request_id=rid,
                     witnessed=witnessed):
-                header, challenge_body = self.node.entry_challenge(
+                challenge_headers, challenge_body = self.node.entry_challenge(
                     total, "per_query", 1, body_hash, request_id=rid)
                 if self.prefetch is not None:
                     claims = decode_claims(challenge_body["macaroon"]) or {}
@@ -676,7 +684,7 @@ class BrokerHTTPServer:
                             "quote_msat": total, "charged_msat": total,
                             "scope": scope,
                         })
-                return 402, {"WWW-Authenticate": header}, json.dumps(
+                return 402, challenge_headers, json.dumps(
                     challenge_body, separators=(",", ":")).encode()
             token = decode_claims(
                 (auth.split(None, 1) + [""])[1].partition(":")[0]) or {}

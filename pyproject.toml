@@ -19,10 +19,15 @@ nwc = ["websockets>=12", "cryptography>=42"]
 # coincurve (libsecp256k1) is an optional fast path for BIP-340; the pure
 # Python implementation remains the reference and the fallback.
 web = ["httpx>=0.27", "pyyaml>=6", "segno>=1.6", "coincurve>=19"]
+mcp = ["httpx>=0.27", "pyyaml>=6"]  # the MCP server: stdlib MCP, httpx to the broker
 node = ["httpx>=0.27", "pyyaml>=6", "coincurve>=19"]
 tor = ["httpx[socks]>=0.27"]        # SOCKS support for .onion indexers
 dev = ["pytest>=8.0", "httpx[socks]>=0.27", "websockets>=12", "cryptography>=42",
        "segno>=1.6", "pyyaml>=6", "coincurve>=19"]
+
+[project.scripts]
+# One binary: `ditta-broker [config]`, `ditta-broker web|mcp [config]`.
+ditta-broker = "broker.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]

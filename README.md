@@ -52,14 +52,22 @@ it as the preimage under "Paid, but nothing happened?".
 ### Run a real broker
 
 ```sh
-pip install -e '.[node,web]'           # add ,nwc and/or ,tor as needed
-cp broker.yaml.example broker.yaml     # then edit: endpoint, seeds
-python3 -m broker broker.yaml          # the broker (protocol + /client API)
-python3 -m broker.webclient broker.yaml   # the web client, a second process
+pip install -e '.[node,web,mcp]'       # add ,nwc and/or ,tor as needed
+cp broker.yaml.example broker.yaml     # then edit: endpoint, seeds,
+                                       # and switch on the front ends you want
+python3 -m broker broker.yaml          # the broker + every enabled front end
 ```
 
-The broker listens on `127.0.0.1:8410` and the web client on
-`127.0.0.1:8420` by default. On first start the broker creates `data/`,
+`ditta-broker` is the same command once the package is installed. The
+front ends, the web client and the MCP server, are **off by default**; turn
+each on with `enabled: true` in its config section (see below). The broker
+then starts them beside itself, each on its own port. To run one alone, for
+example on another host, use `python3 -m broker web broker.yaml` or
+`python3 -m broker mcp broker.yaml`.
+
+The broker listens on `127.0.0.1:8410`, the web client on `127.0.0.1:8420`
+and the MCP server on `127.0.0.1:8430` by default. On first start the
+broker creates `data/`,
 holding its identity key (`broker.seckey`), its L402 token secret, and its
 SQLite stores. Keep that directory: the key *is* the broker's identity on
 the network.
@@ -76,6 +84,7 @@ network by gossip.
 |---|---|---|
 | `node` | httpx, PyYAML, coincurve | running the broker |
 | `web` | httpx, PyYAML, segno, coincurve | running the web client (segno draws invoice QR codes) |
+| `mcp` | httpx, PyYAML | running the MCP server |
 | `nwc` | websockets, cryptography | the Nostr Wallet Connect pay backend |
 | `tor` | httpx[socks] | reaching `.onion` indexers |
 | `dev` | pytest and everything above | the test suite |
@@ -98,7 +107,8 @@ appear only in that file (gitignored), never in the repository.
 | `naming` | indexers are shown by pubkey | an OpenAI-compatible endpoint names and describes each indexer |
 | `routing` | learned routing with default tuning | tuning, or `mode: coverage` for the simpler baseline |
 | `client` | the per-route outcome record stays private | responses carry it, so the page can draw the route map and receipts |
-| `webclient` | the web client uses its defaults | listen address, the broker's URL, page title, and the shared `site_secret` |
+| `webclient` | no web client | with `enabled: true`, the search page and `/protocol`: listen address, page title, and the trusted front end key (`site_secret`) |
+| `mcp` | no MCP server | with `enabled: true`, the MCP server for agents: listen address, the `public_url` that `GET /` advertises, allowed browser origins |
 
 Naming settings can also come from the environment
 (`BROKER_NAMING_ENDPOINT`, `BROKER_NAMING_MODEL`, `BROKER_NAMING_API_KEY`);
@@ -118,24 +128,57 @@ see [`.env.example`](.env.example).
 | `GET /client/peers` | every indexer: pubkey, name, description, pricing, reachability, characteristic terms |
 | `GET /client/announcements` | the signed indexer announcements this broker holds, as received |
 | `GET /client/status` | whether a challenged invoice has settled on this broker's node |
+| `POST /client/beacon` | a result click (`request_id` and URL only), which the learner counts in aggregate |
 
-The `/client` API is this broker's product API, for the web client and for
-agents. It is deliberately not a DITTA protocol surface, since the spec
-leaves the client-to-broker hop out of scope; keeping it off the protocol
-paths is what keeps those paths byte-for-byte conformant.
+The `/client` API is this broker's product API: the bundled front ends use
+it and nothing else, and so can anyone else's. It is deliberately not a
+DITTA protocol surface, since the spec leaves the client-to-broker hop out
+of scope; keeping it off the protocol paths is what keeps those paths
+byte-for-byte conformant.
 
 A paid search works like this: an unpaid `POST /client/search` gets HTTP 402
 with an L402 challenge header and a body that is a **signed payment
-challenge** (invoice, macaroon and expiry, signed with the broker's identity
-key, so you can check who you are paying). Pay the invoice, then retry the
-byte-identical body with `Authorization: L402 <macaroon>:<preimage>`. Every
-result carries `sources[]` naming the indexers that returned it, and every
-response states the scope actually queried and what was charged.
+challenge** (invoice, macaroon and credential expiry, signed with the
+broker's identity key, so you can check who you are paying). The 402 also
+carries three headers so a client never has to decode the invoice or the
+token: `X-Payment-Hash`, `X-Invoice-Amount-Msat`, and `X-Invoice-Expires`
+(unix seconds; the end of the settlement window, after which the invoice
+can't be paid). Pay the invoice, then retry the byte-identical body with
+`Authorization: L402 <macaroon>:<preimage>`. Every result carries
+`sources[]` naming the indexers that returned it, and every response states
+the scope actually queried and what was charged.
 
-**The web client** (default port 8420) serves the search page at `/` and the
-protocol explainer at `/protocol`, and talks to the broker's `/client` API.
-People use the web client; the broker's own port is for other nodes and
-for agents.
+**The trusted front end key.** A front end the operator trusts (the bundled
+web client, or a site you build yourself) can be given the broker's
+`receive.site_secret`. A replay carrying it as `X-Site-Secret` may leave the
+preimage empty (`Authorization: L402 <macaroon>:`) and redeems once the
+broker's own node reports the invoice settled, so a person pays and the
+results arrive without handling a preimage. Poll `GET /client/status` to
+know when. Agents and the MCP server never hold the key and always present
+the preimage.
+
+**The web client** (default port 8420, when enabled) serves the search page
+at `/` and the protocol explainer at `/protocol`. People use the web
+client; the broker's own port is for other nodes and for agents.
+
+**The MCP server** (default port 8430, when enabled) lets agents search
+through the broker over MCP's Streamable HTTP transport at `/mcp`. When it
+is enabled, the broker's `GET /` includes its URL under `mcp`. It has four
+tools:
+
+| Tool | Does |
+|---|---|
+| `search` | runs a search. Free: returns the results. Paid: returns the invoice, its amount, when the settlement window closes, and a `handle` |
+| `redeem` | after the agent's own wallet has paid, takes the `handle` and the preimage and returns the results |
+| `quote` | what a search would cost and which indexers it would ask, without sending it |
+| `list_indexers` | every indexer: pubkey, name, description, size, prices, whether it is searchable now |
+
+The MCP server holds no wallet and stores nothing: paying is the agent's
+business, and the `handle` carries the original request and credential so
+`redeem` can replay the request byte for byte, even after a restart. It
+works with any MCP client that speaks Streamable HTTP, and has been checked
+against the official MCP Python SDK. Result text is third-party content,
+and the tools tell the agent to treat it as data, not instructions.
 
 ## How it works
 
@@ -243,12 +286,11 @@ price) or `quoted` (routing evaluated over the cached network, plus your
 margin; `/client/quote` runs the same computation). Unset prices and
 margins are 0, and a search that totals 0 is served without an invoice.
 
-The broker's own web client may redeem without the preimage: it shares a
-`site_secret` with the broker, and a request carrying that secret can leave
-the preimage slot empty and redeem once the broker's node reports the
-invoice settled, so a person pays and the results simply arrive. Agents and
-protocol peers always present the preimage. See
-[DECISIONS.md](DECISIONS.md) for why this is safe.
+A trusted front end (one the operator has given the `site_secret`, such as
+the bundled web client) may redeem without the preimage once the broker's
+node reports the invoice settled, so a person pays and the results simply
+arrive. Agents, the MCP server and protocol peers always present the
+preimage. See [DECISIONS.md](DECISIONS.md) for why this is safe.
 
 **Pay.** The broker pays the invoices indexers challenge it with, and only
 after verifying the 402's signed payment-challenge body against the
@@ -271,6 +313,16 @@ or autonomous code runs. The code is identical everywhere; only the `pay`
 section differs. A development or test host runs with no `pay` section (it
 can still develop, test, receive and route to free indexers), and a separate
 host that is allowed to spend holds the one credential.
+
+### The front ends are clients, not parts of the broker
+
+The web client and the MCP server ship in this package, but they reach the
+broker only over HTTP through the `/client` API and import nothing from it
+except a small client library (`broker/clientlib.py`) and the standalone
+wire library. `tests/test_frontends.py` enforces that. Both are off unless
+enabled. An operator who wants their own online presence leaves the web
+client off and builds against the same API; nothing the bundled page does
+is unavailable to them.
 
 ### The web client
 
@@ -319,7 +371,10 @@ broker/
   node.py             the pipeline caller; payment wraps the entrance
   server.py           the broker's HTTP face: protocol paths + /client API
   config.py           YAML config and payment factories
-  webclient.py        the web client process: search page and /protocol
+  __main__.py         `python -m broker [web|mcp]`: the broker and its front ends
+  clientlib.py        what a front end needs to use /client (no broker imports)
+  webclient.py        front end: the search page and /protocol
+  mcp.py              front end: the MCP server for agents
   web/                the pages' HTML/CSS/JS, figures.js, IBM Plex fonts
   payment/
     invoice.py          invoice minters: LND (invoice-only) | mock
@@ -327,7 +382,7 @@ broker/
     lnbits.py           LNbits minter and pay provider
     nwc.py              NWC pay provider
     pay.py              PayProvider: null (default) | mock
-tests/                conformance, pipeline, payments, server, web client
+tests/                conformance, pipeline, payments, server, front ends
   demo_stack.py         a local demo network (not a test module)
 docs/                 feature specs (below)
 DECISIONS.md          design decisions not visible from the code
@@ -368,13 +423,16 @@ Version 0.0.1. Built and tested: the conformant wire layer, identity and
 signing, discovery and gossip, the three-stage pipeline with learned routing
 and evidence-based merge, the outcome store, reachability, indexer naming,
 scoped search, the receive side (LND and LNbits minters, quoted and static
-pricing, the head start), the pay side (LNbits and NWC), Tor support, and the
-web client with the `/protocol` page.
+pricing, the head start), the pay side (LNbits and NWC), Tor support, the
+web client with the `/protocol` page, and the MCP server.
 
 The test suite covers conformance, supersession, the module swap and
 direction probes, the HTTP faces over real sockets (including the paid
 entrance: 402, pay, byte-identical retry, single-use token), and the NWC
 backend end to end against an in-process wallet over a real websocket relay.
+The MCP server is tested end to end over real sockets, including the paid
+search, invoice and redeem loop, and the front ends' import boundary is
+checked by test.
 
 ## License
 

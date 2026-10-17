@@ -15,6 +15,7 @@ pip install -e '.[dev]'                 # everything the tests need
 python3 -m pytest -q                    # full suite, a few minutes
 python3 -m pytest tests/test_conformance.py -q   # the spec's vectors only
 python3 tests/demo_stack.py [--paid]    # local demo network + web client
+python3 -m broker [web|mcp] broker.yaml # broker + enabled front ends, or one
 ```
 
 Run the full suite before every commit, and never commit with failures.
@@ -39,6 +40,13 @@ price. Economics chooses who to ask within the ceiling and never reorders
 merit. Merge orders result sets, owns de-duplication, and never sees a
 price. `tests/test_modules.py` enforces this; don't weaken it to make a
 change pass.
+
+**Front ends are clients, not parts of the broker.** `webclient.py` and
+`mcp.py` reach the broker over HTTP through `/client` only, and import
+nothing of it but `clientlib.py`, `broker.wire` and the package version
+(`tests/test_frontends.py` enforces this). If a front end needs something,
+add it to the `/client` API for every client. Front ends stay off unless
+their config section says `enabled: true`.
 
 **The wire layer is stdlib only.** `broker/wire/` imports nothing outside
 the standard library. Elsewhere, third-party packages are imported lazily

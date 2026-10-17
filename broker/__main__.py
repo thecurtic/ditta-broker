@@ -1,9 +1,20 @@
-"""Run the broker: ``python -m broker [config.yaml]``.
+"""Run the broker and its front ends.
+
+    python -m broker [config.yaml]        the broker, plus every front end
+                                          the config switches on
+    python -m broker web [config.yaml]    only the web client
+    python -m broker mcp [config.yaml]    only the MCP server
 
 Free mode by default: no config file means listen on 127.0.0.1:8410, charge
 nothing, pay nothing, and route only to free indexers. Everything else — the
-announced endpoint, seed peers, entry pricing (receive) and the pay backend —
-comes from the YAML config (see broker/config.py for the shape).
+announced endpoint, seed peers, entry pricing (receive), the pay backend and
+the front ends — comes from the YAML config (see broker/config.py).
+
+The front ends (``webclient:`` and ``mcp:``, each off unless ``enabled:
+true``) are clients of the broker's /client API, not parts of it: even when
+the broker starts them in its own process they reach it over HTTP only, so
+running one on another host is the same code with a different
+``broker_url``.
 """
 
 from __future__ import annotations
@@ -28,9 +39,65 @@ from .server import BrokerHTTPServer
 from .stats import StatsCache
 
 
+FRONT_ENDS = ("web", "mcp")
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    mode = "broker"
+    if argv and argv[0] in FRONT_ENDS:
+        mode, argv = argv[0], argv[1:]
     cfg = load_config(argv[0] if argv else None)
+    if mode != "broker":
+        server = start_front_end(cfg, mode)
+        if server is None:
+            section = "webclient" if mode == "web" else "mcp"
+            print(f"the {mode} front end is off: set {section}.enabled: "
+                  f"true in the config to run it", file=sys.stderr)
+            return 2
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            server.shutdown()
+        return 0
+    return run_broker(cfg)
+
+
+def broker_url_for(cfg) -> str:
+    """Where a front end started beside the broker reaches it."""
+    host = cfg.listen_host
+    if host in ("", "0.0.0.0", "::"):
+        host = "127.0.0.1"
+    return f"http://{host}:{cfg.listen_port}"
+
+
+def start_front_end(cfg, which: str):
+    """Start one front end in the background if the config switches it on;
+    returns its server, or None when it is off. Each speaks to the broker
+    over HTTP only; ``broker_url`` defaults to the broker's own address."""
+    if which == "web" and cfg.web_enabled:
+        from .webclient import WebClientServer, config_from
+
+        web_cfg = config_from(cfg.webclient, broker_url_for(cfg))
+        server = WebClientServer(web_cfg)
+        server.start_background()
+        print(f"web client on {web_cfg.listen_host}:{server.port} -> "
+              f"broker {web_cfg.broker_url}", flush=True)
+        return server
+    if which == "mcp" and cfg.mcp_enabled:
+        from .mcp import MCPServer, config_from
+
+        mcp_cfg = config_from(cfg.mcp, broker_url_for(cfg))
+        server = MCPServer(mcp_cfg)
+        server.start_background()
+        print(f"MCP server on {mcp_cfg.listen_host}:{server.port}/mcp -> "
+              f"broker {mcp_cfg.broker_url}", flush=True)
+        return server
+    return None
+
+
+def run_broker(cfg) -> int:
 
     identity = Identity.load_or_create(cfg.key_path)
     peers = PeerStore(future_skew=cfg.future_skew,
@@ -135,10 +202,14 @@ def main(argv: list[str] | None = None) -> int:
 
     threading.Thread(target=gossip_loop, daemon=True).start()
 
+    front_ends = [s for s in (start_front_end(cfg, which)
+                              for which in FRONT_ENDS) if s is not None]
     try:
         while True:
             time.sleep(3600)
     except KeyboardInterrupt:
+        for s in front_ends:
+            s.shutdown()
         server.shutdown()
     return 0
 

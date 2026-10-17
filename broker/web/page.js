@@ -1671,6 +1671,8 @@ async function finish(preimage) {
         macaroon: pending.macaroon,
         preimage: preimage,
         quote_msat: pending.quote_msat,
+        payment_hash: pending.payment_hash,
+        request_sha256: pending.request_sha256,
       }),
     });
     handleOutcome(await resp.json(), p.payment_hash,

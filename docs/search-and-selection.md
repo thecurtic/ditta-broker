@@ -157,6 +157,7 @@ As shipped (`broker/server.py`, tested in `tests/test_scope.py`):
 - **Errors are explicit and machine-readable:** unknown pubkey, empty scope, over spend cap, each naming the pubkeys involved.
 - **Docs** tell agents to store and send pubkeys, not names. Names drift and are display labels only.
 - Agents have no chips, drafts or refresh. Every call is explicit and self-contained.
+- **MCP:** when the operator enables it, the MCP server offers the same search to agents as tools (`search`, `redeem`, `quote`, `list_indexers`), with `indexers` as the scope by pubkey. It is a client of this API like the web UI, so scope, errors and never-widen behave identically. A paid search returns the invoice, its amount and the end of its settlement window; the agent pays with its own wallet and redeems with the preimage. `GET /` names the MCP URL when it is enabled.
 
 ## 9. Non-goals
 

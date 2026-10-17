@@ -60,7 +60,7 @@ class LnbitsInvoiceMinter(InvoiceMinter):
                  invoice_expiry: int = 3600, timeout: float = 15):
         self._url = url.rstrip("/")
         self._key = invoice_key
-        self._expiry = invoice_expiry
+        self._expiry = self.invoice_expiry = invoice_expiry
         self._timeout = timeout
 
     def _request(self, method: str, path: str, **kwargs):

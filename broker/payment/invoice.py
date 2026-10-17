@@ -21,6 +21,10 @@ from pathlib import Path
 
 
 class InvoiceMinter(ABC):
+    #: Seconds an invoice this minter mints stays payable: the settlement
+    #: window a payer is told about. Minters that set an expiry override it.
+    invoice_expiry: int = 3600
+
     @abstractmethod
     def mint(self, amount_msat: int, memo: str) -> tuple[str, str]:
         """Return (payment_hash_hex, bolt11) for a new invoice."""
@@ -96,7 +100,7 @@ class LndInvoiceMinter(InvoiceMinter):
         self._rest_url = rest_url.rstrip("/")
         self._macaroon_hex = Path(macaroon_path).read_bytes().hex()
         self._verify = tls_cert_path or False
-        self._expiry = invoice_expiry
+        self._expiry = self.invoice_expiry = invoice_expiry
 
     def mint(self, amount_msat: int, memo: str) -> tuple[str, str]:
         import httpx

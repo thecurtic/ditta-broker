@@ -3,6 +3,37 @@
 Design decisions that are not visible from the code's structure alone, so
 they don't get silently reversed later.
 
+## Front ends are clients of /client, off by default
+
+(Oct 17 2026.) The web client and the MCP server ship in the broker
+package and run from the same command (`python -m broker` starts whichever
+are enabled; `python -m broker web|mcp` runs one alone), but they are not
+parts of the broker. They reach it over HTTP through the public `/client`
+API only, and import nothing of it but `clientlib.py` and the standalone
+wire library — `tests/test_frontends.py` fails on any other import. Both
+are off unless `enabled: true`, like `receive` and `pay`: an operator who
+wants their own online presence leaves the bundled page off and builds
+against the same API, and nothing the page does is out of their reach.
+
+What that took: the page used to read the broker's private token (payment
+hash, body binding) and its mock invoice format. Instead every `/client`
+402 now states `X-Payment-Hash`, `X-Invoice-Amount-Msat` and
+`X-Invoice-Expires` (the end of the settlement window), and the page checks
+its replay against the hashes it was given at challenge time. The "results
+arrive once paid" shortcut stays, as the documented trusted front end key
+(below).
+
+The MCP server is a thin, stateless door for agents: four tools (`search`,
+`redeem`, `quote`, `list_indexers`) over Streamable HTTP, written on the
+standard library like the rest of the broker rather than on an SDK, and
+checked against the official MCP Python SDK. It holds no wallet — paying
+is the agent's business — and no trusted front end key, so it always
+needs the preimage. A paid search returns the invoice, its amount and its
+settlement deadline, and a handle that carries the original request bytes
+and macaroon, so `redeem` replays byte for byte with no server-side state.
+When enabled, the broker's `GET /` names its URL, so an agent that finds
+the broker directly finds the tools.
+
 ## Every figure is ours: labeled diagrams of DITTA's own parts
 
 (Oct 10 2026.) The redesign first used stock figures from a third-party
@@ -130,23 +161,26 @@ replays by itself the moment settlement shows; the paste survives folded
 under "Paid, but nothing happened?" for a site without the secret or a
 node that has not witnessed settlement.
 
-This is the site's privilege alone, not the client API's. The web client
-process and the broker share `site_secret` (`receive.site_secret` /
-`webclient.site_secret`); a replay carrying it as `X-Site-Secret` is
+This is a trusted front end's privilege, not every client's. (Oct 17
+2026: it was the bundled site's alone; it is now a documented part of the
+`/client` API, the **trusted front end key**, so a front end the operator
+builds can have it too — see the front-end entry above.) The operator gives
+`receive.site_secret` to the front ends they run (`webclient.site_secret`
+for the bundled page); a replay carrying it as `X-Site-Secret` is
 "witnessed", and only a witnessed presentation may leave the slot empty
 (`L402Receiver.redeemable(..., witnessed=True)`). Agents at the same
-`/client/search` door, protocol peers, and this broker's own outbound
-client present the preimage as L402 says — to them an empty slot is a bad
-credential and earns a fresh 402. With no secret configured nothing is
-ever witnessed and the site pastes like everyone else.
+`/client/search` door, the MCP server, protocol peers, and this broker's
+own outbound client present the preimage as L402 says — to them an empty
+slot is a bad credential and earns a fresh 402. With no secret configured
+nothing is ever witnessed and every client presents the preimage.
 
-What this widens, deliberately and only for the site: whoever holds the
-macaroon, the exact request bytes, AND the site secret can collect once
+What this widens, deliberately and only for trusted front ends: whoever
+holds the macaroon, the exact request bytes, AND the key can collect once
 the invoice is paid. The macaroon holder is the party who received the
-402, over the same TLS channel the redemption travels, and the secret never
-leaves the two server processes — the preimage added no protection against
-anyone who could not already read that channel. The head start's "moves
-work, never trust" line is therefore reversed for this one case and
+402, over the same TLS channel the redemption travels, and the key never
+leaves the operator's own server processes — the preimage added no
+protection against anyone who could not already read that channel. The
+head start's "moves work, never trust" line is therefore reversed for this one case and
 recorded here.
 
 ## Cards say what the broker THINKS, and separately what it has SEEN

@@ -570,12 +570,17 @@ class BrokerNode:
                         quantity: int = 1, body_sha256: str | None = None,
                         request_id: str = "",
                         bound_pubkey: str | None = None):
-        """Mint the door's 402: (header value, signed payment challenge).
+        """Mint the door's 402: (headers, signed payment challenge).
 
         The body follows the Payment profile — it duplicates the header's
         invoice and macaroon and states the credential's expiry, all under
         this broker's identity signature, so whoever pays the entrance can
-        check who they are paying before they pay.
+        check who they are paying before they pay. The headers carry the
+        L402 challenge plus three off-protocol conveniences for /client
+        callers, so none of them has to decode the invoice or the token:
+        ``X-Payment-Hash``, ``X-Invoice-Amount-Msat`` and
+        ``X-Invoice-Expires`` (unix seconds; the end of the settlement
+        window).
         """
         if self.receiver is None:
             raise RuntimeError("broker has no receiver; entry is free")
@@ -586,4 +591,8 @@ class BrokerNode:
                 self.identity.pubkey, request_id,
                 ch["invoice"], ch["macaroon"], ch["expiry"]),
             "payment_challenge")
-        return ch["header"], body
+        headers = {"WWW-Authenticate": ch["header"],
+                   "X-Payment-Hash": ch["payment_hash"],
+                   "X-Invoice-Amount-Msat": str(ch["amount_msat"]),
+                   "X-Invoice-Expires": str(ch["invoice_expires"])}
+        return headers, body

@@ -58,6 +58,31 @@ class BrokerConfig:
     routing: dict = field(default_factory=dict)  # learned-routing policy
     naming: dict = field(default_factory=dict)  # indexer naming (local LLM)
     client: dict = field(default_factory=dict)  # visibility flags, default off
+    # The front ends: clients of the /client API, each off unless enabled.
+    webclient: dict = field(default_factory=dict)  # the search page
+    mcp: dict = field(default_factory=dict)        # the MCP server
+
+    @property
+    def web_enabled(self) -> bool:
+        return self.webclient.get("enabled") is True
+
+    @property
+    def mcp_enabled(self) -> bool:
+        return self.mcp.get("enabled") is True
+
+    @property
+    def mcp_url(self) -> str | None:
+        """Where agents reach the MCP server, for the GET / description:
+        ``mcp.public_url`` when set, else its local listen address. None
+        when the MCP server is off."""
+        if not self.mcp_enabled:
+            return None
+        public = str(self.mcp.get("public_url") or "")
+        if public:
+            return public
+        host = self.mcp.get("listen_host", "127.0.0.1")
+        port = self.mcp.get("listen_port", 8430)
+        return f"http://{host}:{port}/mcp"
 
     @property
     def expose_outcome(self) -> bool:
@@ -145,7 +170,6 @@ def load_config(path: str | os.PathLike | None = None) -> BrokerConfig:
     p = Path(path)
     raw = (yaml.safe_load(p.read_text()) or {}) if p.exists() else {}
     kwargs = dict(raw)
-    kwargs.pop("webclient", None)
     if "data_dir" in kwargs:
         kwargs["data_dir"] = Path(kwargs["data_dir"])
     if "seeds" in kwargs:
