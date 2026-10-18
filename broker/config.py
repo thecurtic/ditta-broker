@@ -174,6 +174,14 @@ def load_config(path: str | os.PathLike | None = None) -> BrokerConfig:
         kwargs["data_dir"] = Path(kwargs["data_dir"])
     if "seeds" in kwargs:
         kwargs["seeds"] = tuple(kwargs["seeds"])
+    # A quoted "true" is a string, and a front end that silently stays off
+    # is worse than one that refuses to start.
+    for section in ("webclient", "mcp"):
+        enabled = (kwargs.get(section) or {}).get("enabled", False)
+        if not isinstance(enabled, bool):
+            raise ValueError(
+                f"{section}.enabled must be true or false (unquoted), "
+                f"not {enabled!r}")
     return BrokerConfig(**kwargs)
 
 

@@ -72,6 +72,20 @@ def test_front_ends_are_off_by_default(tmp_path):
     assert main(["web", str(empty)]) == 2
 
 
+def test_a_quoted_enabled_switch_is_refused_not_ignored(tmp_path):
+    """`enabled: "true"` is a string; starting with the front end silently
+    off would hide the mistake, so the config refuses to load."""
+    from broker.config import load_config
+
+    for section in ("webclient", "mcp"):
+        path = tmp_path / f"{section}.yaml"
+        path.write_text(f'{section}:\n  enabled: "true"\n')
+        with pytest.raises(ValueError, match=f"{section}.enabled"):
+            load_config(path)
+        path.write_text(f"{section}:\n  enabled: true\n")
+        assert load_config(path).web_enabled == (section == "webclient")
+
+
 def test_broker_starts_enabled_front_ends_against_itself(tmp_path):
     """Enabled, each front end comes up on its own port and reaches the
     broker over HTTP at the broker's own address by default."""
