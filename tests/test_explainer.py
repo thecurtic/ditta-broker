@@ -85,7 +85,7 @@ def test_broker_serves_its_announcements_read_only(tmp_path):
         r["server"].shutdown()
 
 
-def test_page_proxy_reverifies_and_serves_protocol(free_stack):  # noqa: F811
+def test_page_proxy_serves_protocol_with_verified_announcements(free_stack):  # noqa: F811
     r = httpx.get(free_stack + "/protocol", timeout=10)
     assert r.status_code == 200
     assert "How DITTA works" in r.text
@@ -96,15 +96,18 @@ def test_page_proxy_reverifies_and_serves_protocol(free_stack):  # noqa: F811
     validate(a, "announcement")              # still verifies, unchanged
 
 
-def test_proxy_drops_an_announcement_that_does_not_verify(tmp_path):
+def test_proxy_passes_announcements_through_as_data(tmp_path):
+    """Verifying announcements is the broker's job (PeerStore refuses a
+    bad one on arrival); the web client speaks no DITTA and only shows
+    what /client/announcements returns, dropping what is not even shaped
+    like one and any endpoint a browser should not follow."""
     from broker.webclient import WebClient, WebClientConfig
 
     good = _indexer(tmp_path, "g").announcement("https://g.test")
-    bad = dict(good, endpoint="https://evil.test")   # signature now wrong
     api = WebClient(WebClientConfig())
     api._get_broker = lambda path: (200, {}, json.dumps({
         "broker": {"pubkey": "ab" * 32, "endpoint": "javascript:alert(1)"},
-        "announcements": [good, bad]}).encode())
+        "announcements": [good, "junk", {"pubkey": "nope"}]}).encode())
     out = api.announcements()
     assert out["announcements"] == [good]
     assert out["broker"] == {"pubkey": "ab" * 32, "endpoint": None}

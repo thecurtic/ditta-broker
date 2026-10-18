@@ -1,8 +1,8 @@
 """The front ends: clients of /client, off by default, and the MCP server.
 
 The web client and the MCP server ship in the broker package but are not
-part of the broker: they import only the client library (and the
-standalone wire library) and reach the broker over HTTP. Both are off
+part of the broker: they import only the client library, speak no DITTA,
+and reach the broker over HTTP. Both are off
 unless the config enables them. The MCP server is exercised end to end
 over real sockets: free search, the paid search -> invoice -> redeem loop,
 and its protocol edges.
@@ -37,9 +37,10 @@ PKG = Path(__file__).resolve().parents[1] / "broker"
 
 @pytest.mark.parametrize("module", ["webclient.py", "mcp.py", "clientlib.py"])
 def test_front_ends_import_no_broker_internals(module):
-    """A front end may import the client library, the wire library, and
-    the package version — nothing else of the broker's."""
-    allowed = {"clientlib", "wire", "__main__"}
+    """A front end may import the client library and the package version
+    — nothing else of the broker's, and not the protocol (wire) library:
+    DITTA is the broker's business, /client is plain JSON."""
+    allowed = {"clientlib", "__main__"}
     tree = ast.parse((PKG / module).read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
@@ -127,9 +128,9 @@ def test_get_root_names_the_mcp_url_only_when_enabled(tmp_path):
         on["server"].shutdown()
 
 
-def test_paid_402_states_hash_amount_and_settlement_window(tmp_path):
-    """The /client 402 tells any client what it needs without decoding
-    the invoice or the broker's token."""
+def test_paid_402_is_plain_json(tmp_path):
+    """The /client 402 tells any client what it needs in plain JSON: no
+    protocol message to verify, no invoice or token to decode."""
     broker = _broker(tmp_path, receive=_PAID)
     try:
         before = int(time.time())
@@ -138,11 +139,21 @@ def test_paid_402_states_hash_amount_and_settlement_window(tmp_path):
                                            "request_id": "r1"}).encode())
         assert r.status_code == 402
         body = r.json()
-        assert len(r.headers["X-Payment-Hash"]) == 64
-        assert r.headers["X-Invoice-Amount-Msat"] == "1500"
-        expires = int(r.headers["X-Invoice-Expires"])
-        assert before + 3600 <= expires <= int(time.time()) + 3600
-        assert body["expiry"] > expires     # the credential outlives it
+        assert set(body) == {"error", "request_id", "invoice", "macaroon",
+                             "payment_hash", "amount_msat",
+                             "invoice_expires", "credential_expires"}
+        assert body["error"] == "payment_required"
+        assert body["request_id"] == "r1"
+        assert "signature" not in body and "pubkey" not in body
+        assert len(body["payment_hash"]) == 64
+        assert body["amount_msat"] == 1500
+        assert before + 3600 <= body["invoice_expires"] \
+            <= int(time.time()) + 3600
+        # the credential outlives the settlement window
+        assert body["credential_expires"] > body["invoice_expires"]
+        assert r.headers["WWW-Authenticate"] == (
+            f'L402 macaroon="{body["macaroon"]}", '
+            f'invoice="{body["invoice"]}"')
     finally:
         broker["server"].shutdown()
 

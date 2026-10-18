@@ -126,7 +126,7 @@ see [`.env.example`](.env.example).
 | `POST /client/search` | search. Body: `{query, request_id, n?, max_msat?, exclude_tor?, pubkeys?}` |
 | `GET /client/quote` | what a search would cost and which indexers it would ask, before it is sent |
 | `GET /client/peers` | every indexer: pubkey, name, description, pricing, reachability, characteristic terms |
-| `GET /client/announcements` | the signed indexer announcements this broker holds, as received |
+| `GET /client/announcements` | the indexer announcements this broker holds (each verified on arrival), as received |
 | `GET /client/status` | whether a challenged invoice has settled on this broker's node |
 | `POST /client/beacon` | a result click (`request_id` and URL only), which the learner counts in aggregate |
 
@@ -137,14 +137,20 @@ of scope; keeping it off the protocol paths is what keeps those paths
 byte-for-byte conformant.
 
 A paid search works like this: an unpaid `POST /client/search` gets HTTP 402
-with an L402 challenge header and a body that is a **signed payment
-challenge** (invoice, macaroon and credential expiry, signed with the
-broker's identity key, so you can check who you are paying). The 402 also
-carries three headers so a client never has to decode the invoice or the
-token: `X-Payment-Hash`, `X-Invoice-Amount-Msat`, and `X-Invoice-Expires`
-(unix seconds; the end of the settlement window, after which the invoice
-can't be paid). Pay the invoice, then retry the byte-identical body with
-`Authorization: L402 <macaroon>:<preimage>`. Every result carries
+with an L402 challenge header and a plain JSON body:
+
+```json
+{"error": "payment_required", "request_id": "…",
+ "invoice": "lnbc…", "macaroon": "…", "payment_hash": "<64 hex>",
+ "amount_msat": 1500, "invoice_expires": 1792400000,
+ "credential_expires": 1792482800}
+```
+
+`invoice_expires` (unix seconds) is the end of the settlement window, after
+which the invoice can't be paid; `credential_expires` is when the paid
+credential stops redeeming. A client never has to decode the invoice or the
+token, and never touches DITTA. Pay the invoice, then retry the
+byte-identical body with `Authorization: L402 <macaroon>:<preimage>`. Every result carries
 `sources[]` naming the indexers that returned it, and every response states
 the scope actually queried and what was charged.
 
@@ -318,8 +324,9 @@ host that is allowed to spend holds the one credential.
 
 The web client and the MCP server ship in this package, but they reach the
 broker only over HTTP through the `/client` API and import nothing from it
-except a small client library (`broker/clientlib.py`) and the standalone
-wire library. `tests/test_frontends.py` enforces that. Both are off unless
+except a small client library (`broker/clientlib.py`). Neither speaks
+DITTA: the protocol is the broker's business, and `/client` is plain JSON.
+`tests/test_frontends.py` enforces that. Both are off unless
 enabled. An operator who wants their own online presence leaves the web
 client off and builds against the same API; nothing the bundled page does
 is unavailable to them.

@@ -3,15 +3,13 @@
 The broker's front ends (the web client, the MCP server) are clients of the
 broker, not parts of it: they reach it only over HTTP through the public
 ``/client`` API, exactly as a front end someone else builds would. So this
-module imports nothing from the broker package — the one exception allowed
-to a front end is ``broker.wire``, the standalone protocol library, for
-verifying signed announcements independently. ``tests/test_frontends.py``
-enforces that.
+module imports nothing from the broker package, and nothing here speaks
+the DITTA protocol: that is the broker's business, and ``/client`` is a
+plain JSON product API. ``tests/test_frontends.py`` enforces both.
 
-Everything here is grounded in the documented API: the L402 challenge
-header, the signed payment-challenge body, and the 402's off-protocol
-``X-Payment-Hash`` / ``X-Invoice-Amount-Msat`` / ``X-Invoice-Expires``
-headers, so no front end ever decodes the broker's private token format.
+Everything here is grounded in the documented API — the 402's JSON body
+states the invoice, its payment hash, amount and settlement deadline — so
+no front end ever decodes an invoice or the broker's private token format.
 """
 
 from __future__ import annotations
@@ -22,8 +20,6 @@ import re
 import secrets
 
 ALLOWED_SCHEMES = ("http://", "https://")
-_CHALLENGE_RE = re.compile(
-    r'(?:L402|LSAT)\s+macaroon="([^"]+)",\s*invoice="([^"]+)"')
 _PREIMAGE_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -87,40 +83,36 @@ def header(headers: dict, name: str) -> str:
     return ""
 
 
-def parse_challenge(headers: dict, body: bytes) -> dict | None:
-    """A /client 402 as a front end needs it, or None when it is not a
+def parse_challenge(body: bytes) -> dict | None:
+    """A /client 402 body as a front end needs it, or None when it is not a
     usable challenge.
 
-    Returns ``macaroon`` and ``invoice`` (from the L402 header), and from
-    the broker's 402 headers ``payment_hash``, ``amount_msat`` and
-    ``invoice_expires`` (unix seconds, the end of the settlement window),
-    plus ``credential_expires`` from the signed body's ``expiry``.
+    The body is plain JSON: ``invoice``, ``macaroon``, ``payment_hash``,
+    ``amount_msat``, ``invoice_expires`` (unix seconds, the end of the
+    settlement window) and ``credential_expires``. The first four are
+    required; a missing expiry comes back as None.
     """
-    m = _CHALLENGE_RE.search(header(headers, "WWW-Authenticate"))
-    if not m:
-        return None
-    macaroon, invoice = m.group(1), m.group(2)
     try:
-        signed = json.loads(body)
+        data = json.loads(body)
     except (ValueError, TypeError):
-        signed = None
-    if not isinstance(signed, dict) or signed.get("invoice") != invoice \
-            or signed.get("macaroon") != macaroon:
-        return None   # the body is authoritative and must agree
-    payment_hash = header(headers, "X-Payment-Hash").strip().lower()
+        return None
+    if not isinstance(data, dict):
+        return None
+    invoice, macaroon = data.get("invoice"), data.get("macaroon")
+    payment_hash = data.get("payment_hash")
+    amount = as_int(data.get("amount_msat"))
+    if not (isinstance(invoice, str) and invoice
+            and isinstance(macaroon, str) and macaroon
+            and hex64(payment_hash) and amount > 0):
+        return None
     return {
         "macaroon": macaroon,
         "invoice": invoice,
-        "payment_hash": payment_hash if hex64(payment_hash) else None,
-        "amount_msat": _int_header(headers, "X-Invoice-Amount-Msat"),
-        "invoice_expires": _int_header(headers, "X-Invoice-Expires"),
-        "credential_expires": as_int(signed.get("expiry")) or None,
+        "payment_hash": payment_hash,
+        "amount_msat": amount,
+        "invoice_expires": as_int(data.get("invoice_expires")) or None,
+        "credential_expires": as_int(data.get("credential_expires")) or None,
     }
-
-
-def _int_header(headers: dict, name: str) -> int | None:
-    v = header(headers, name).strip()
-    return int(v) if v.isdigit() else None
 
 
 def sanitize_results(results: list[dict]) -> list[dict]:

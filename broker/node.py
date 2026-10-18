@@ -570,29 +570,24 @@ class BrokerNode:
                         quantity: int = 1, body_sha256: str | None = None,
                         request_id: str = "",
                         bound_pubkey: str | None = None):
-        """Mint the door's 402: (headers, signed payment challenge).
+        """Mint the door's 402: (headers, body).
 
-        The body follows the Payment profile — it duplicates the header's
-        invoice and macaroon and states the credential's expiry, all under
-        this broker's identity signature, so whoever pays the entrance can
-        check who they are paying before they pay. The headers carry the
-        L402 challenge plus three off-protocol conveniences for /client
-        callers, so none of them has to decode the invoice or the token:
-        ``X-Payment-Hash``, ``X-Invoice-Amount-Msat`` and
-        ``X-Invoice-Expires`` (unix seconds; the end of the settlement
-        window).
+        The door is the /client product API, not a protocol path, so the
+        body is plain JSON rather than DITTA's signed payment_challenge:
+        everything a client needs to pay and redeem, with nothing to
+        decode or verify. The L402 ``WWW-Authenticate`` header carries the
+        same macaroon and invoice for HTTP clients that speak L402.
         """
         if self.receiver is None:
             raise RuntimeError("broker has no receiver; entry is free")
         ch = self.receiver.challenge(amount_msat, pricing_type, quantity,
                                      body_sha256, bound_pubkey)
-        body = self.identity.signed(
-            messages.payment_challenge(
-                self.identity.pubkey, request_id,
-                ch["invoice"], ch["macaroon"], ch["expiry"]),
-            "payment_challenge")
-        headers = {"WWW-Authenticate": ch["header"],
-                   "X-Payment-Hash": ch["payment_hash"],
-                   "X-Invoice-Amount-Msat": str(ch["amount_msat"]),
-                   "X-Invoice-Expires": str(ch["invoice_expires"])}
-        return headers, body
+        body = {"error": "payment_required",
+                "request_id": request_id,
+                "invoice": ch["invoice"],
+                "macaroon": ch["macaroon"],
+                "payment_hash": ch["payment_hash"],
+                "amount_msat": ch["amount_msat"],
+                "invoice_expires": ch["invoice_expires"],
+                "credential_expires": ch["expiry"]}
+        return {"WWW-Authenticate": ch["header"]}, body

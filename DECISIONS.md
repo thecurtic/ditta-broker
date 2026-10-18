@@ -9,17 +9,30 @@ they don't get silently reversed later.
 package and run from the same command (`python -m broker` starts whichever
 are enabled; `python -m broker web|mcp` runs one alone), but they are not
 parts of the broker. They reach it over HTTP through the public `/client`
-API only, and import nothing of it but `clientlib.py` and the standalone
-wire library — `tests/test_frontends.py` fails on any other import. Both
+API only, and import nothing of it but `clientlib.py` —
+`tests/test_frontends.py` fails on any other import, the wire library
+included. Both
 are off unless `enabled: true`, like `receive` and `pay`: an operator who
 wants their own online presence leaves the bundled page off and builds
 against the same API, and nothing the page does is out of their reach.
 
 What that took: the page used to read the broker's private token (payment
 hash, body binding) and its mock invoice format. Instead every `/client`
-402 now states `X-Payment-Hash`, `X-Invoice-Amount-Msat` and
-`X-Invoice-Expires` (the end of the settlement window), and the page checks
-its replay against the hashes it was given at challenge time. The "results
+402 states the payment hash, amount and settlement deadline, and the page
+checks its replay against the hashes it was given at challenge time.
+
+(Oct 18 2026.) The front ends speak no DITTA at all. The `/client` 402
+body used to be the protocol's signed `payment_challenge`, passed through
+because the broker already made one, and the web client re-verified
+indexer announcements with the wire library. Both are gone: the 402 body
+is plain JSON (`error`, `request_id`, `invoice`, `macaroon`,
+`payment_hash`, `amount_msat`, `invoice_expires`, `credential_expires`)
+under the usual L402 header, and the explainer shows announcements as the
+broker serves them, since `PeerStore` refuses any that fails to verify on
+arrival. The signature offered nothing at this door — a front end reaches
+its own broker, and anyone building one should not have to learn the
+protocol to read "pay this invoice". The protocol paths, and the signed
+challenges indexers send this broker, are unchanged. The "results
 arrive once paid" shortcut stays, as the documented trusted front end key
 (below).
 

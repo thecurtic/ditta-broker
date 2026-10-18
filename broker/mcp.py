@@ -242,9 +242,8 @@ class Tools:
 
     def _payment_required(self, headers: dict, body: bytes,
                           request_bytes: bytes) -> dict:
-        ch = parse_challenge(headers, body)
-        if ch is None or ch["payment_hash"] is None \
-                or ch["amount_msat"] is None:
+        ch = parse_challenge(body)
+        if ch is None:
             raise ToolError("the broker asked for payment but its "
                             "challenge was unusable")
         handle = _seal_handle(request_bytes, ch["macaroon"],

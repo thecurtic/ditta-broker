@@ -43,8 +43,9 @@ change pass.
 
 **Front ends are clients, not parts of the broker.** `webclient.py` and
 `mcp.py` reach the broker over HTTP through `/client` only, and import
-nothing of it but `clientlib.py`, `broker.wire` and the package version
-(`tests/test_frontends.py` enforces this). If a front end needs something,
+nothing of it but `clientlib.py` and the package version
+(`tests/test_frontends.py` enforces this). They don't speak DITTA: the
+protocol is the broker's business, and `/client` is plain JSON. If a front end needs something,
 add it to the `/client` API for every client. Front ends stay off unless
 their config section says `enabled: true`.
 

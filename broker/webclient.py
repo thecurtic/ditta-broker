@@ -72,7 +72,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # A client of the broker's /client API, never a part of the broker: only
-# the client library (and the standalone wire library) may be imported.
+# the client library may be imported, and nothing here speaks DITTA.
 from .clientlib import (ALLOWED_SCHEMES as _ALLOWED_SCHEMES, BrokerAPI,
                         as_int as _as_int, header, hex64 as _hex64,
                         new_request_id, parse_challenge, preimage_matches,
@@ -416,11 +416,8 @@ class WebClient:
 
     def announcements(self) -> dict:
         """The explainer's live panel: the broker's own identity and the
-        announcements it holds. Each is re-validated here, signature and
-        all, so the page only ever shows an announcement that verifies —
-        and shows it unchanged, since a changed one would not."""
-        from .wire import ValidationError, validate
-
+        announcements it holds, shown unchanged. The broker verified each
+        one on arrival; to the page they are data to display."""
         status, _h, body = self._get_broker("/client/announcements")
         try:
             data = json.loads(body) if status == 200 else None
@@ -433,11 +430,8 @@ class WebClient:
         endpoint = broker.get("endpoint")
         out = []
         for a in (data.get("announcements") or [])[:20]:
-            try:
-                validate(a, "announcement")
-            except (ValidationError, Exception):
-                continue
-            out.append(a)
+            if isinstance(a, dict) and _hex64(a.get("pubkey")):
+                out.append(a)
         return {
             "broker": {
                 "pubkey": broker.get("pubkey")
@@ -574,9 +568,9 @@ class WebClient:
 
     def _challenge_payload(self, headers: dict, body: bytes,
                            request_bytes: bytes, quote_msat: int) -> dict:
-        ch = parse_challenge(headers, body)
-        if ch is None or ch["payment_hash"] is None:
-            return {"error": "402 without a usable L402 challenge"}
+        ch = parse_challenge(body)
+        if ch is None:
+            return {"error": "402 without a usable payment challenge"}
         return {
             "payment_required": True,
             "invoice": ch["invoice"],

@@ -196,12 +196,13 @@ class BrokerHTTPServer:
             "client_paths": {
                 "/client/search": "POST {query, request_id, n?, max_msat?, "
                                   "exclude_tor?, pubkeys?}. An unpaid ask "
-                                  "gets HTTP "
-                                  "402: an L402 challenge header plus a "
-                                  "signed payment_challenge body, plus "
-                                  "X-Payment-Hash, X-Invoice-Amount-Msat "
-                                  "and X-Invoice-Expires (unix seconds, "
-                                  "the end of the settlement window). Pay "
+                                  "gets HTTP 402 with an L402 challenge "
+                                  "header and the JSON body {error: "
+                                  "payment_required, request_id, invoice, "
+                                  "macaroon, payment_hash, amount_msat, "
+                                  "invoice_expires (unix seconds, the end "
+                                  "of the settlement window), "
+                                  "credential_expires}. Pay "
                                   "the invoice, then retry the "
                                   "byte-identical body with Authorization: "
                                   "L402 <macaroon>:<preimage>. Response: "
@@ -219,8 +220,9 @@ class BrokerHTTPServer:
                                  "summary, pricing, reachability "
                                  "(searchable), characteristic terms",
                 "/client/announcements": "GET — this broker's pubkey and "
-                                         "endpoint, and the signed indexer "
-                                         "announcements it holds, as "
+                                         "endpoint, and the indexer "
+                                         "announcements it holds (each "
+                                         "verified on arrival), as "
                                          "received",
                 "/client/status": "GET ?hash=<payment_hash> — whether a "
                                   "challenged invoice has settled on this "
@@ -620,7 +622,7 @@ class BrokerHTTPServer:
         The body is the customer envelope (§5 knobs), not a protocol
         message; the broker translates it into protocol query requests
         downstream. L402 wraps it exactly as before: unpaid asks get a 402
-        with a signed payment challenge, the credential binds the sha256
+        with a plain JSON payment challenge, the credential binds the sha256
         of these exact bytes, and redemption replays them byte-identical.
         Consume-on-service and the head start both apply unchanged.
         """

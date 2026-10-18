@@ -258,10 +258,10 @@ def test_paid_entrance_full_l402_loop(tmp_path):
         challenge = first.headers["WWW-Authenticate"]
         assert challenge.startswith('L402 macaroon="')
 
-        # The 402 body is a signed payment challenge that duplicates the
-        # header and answers OUR request — the Payment profile's rule.
-        challenge_body, _ = accept(first.content, "payment_challenge")
-        assert challenge_body["pubkey"] == r["node"].identity.pubkey
+        # The 402 body is plain /client JSON that duplicates the header
+        # and answers OUR request; no protocol message at this door.
+        challenge_body = first.json()
+        assert challenge_body["error"] == "payment_required"
         assert challenge_body["request_id"] == envelope["request_id"]
 
         # Settle the mock invoice like a paying customer would.
@@ -381,7 +381,7 @@ def test_status_asks_the_node_and_an_empty_preimage_slot_redeems(tmp_path):
         body = json.dumps(envelope).encode()
         first = httpx.post(base + "/client/search", content=body, timeout=10)
         assert first.status_code == 402
-        challenge, _ = accept(first.content, "payment_challenge")
+        challenge = first.json()
         from broker.payment.l402 import decode_claims
         h = decode_claims(challenge["macaroon"])["h"]
         agent = {"Authorization": f'L402 {challenge["macaroon"]}:'}
@@ -431,7 +431,7 @@ def test_without_a_site_secret_nothing_is_witnessed(tmp_path):
     try:
         body = json.dumps(_envelope()).encode()
         first = httpx.post(base + "/client/search", content=body, timeout=10)
-        challenge, _ = accept(first.content, "payment_challenge")
+        challenge = first.json()
         from broker.payment.l402 import decode_claims
         minter.mark_settled(decode_claims(challenge["macaroon"])["h"])
         for secret in ("", "anything"):
@@ -468,7 +468,7 @@ def test_head_start_routes_on_settlement_before_the_preimage(tmp_path):
         body = json.dumps(envelope).encode()
         first = httpx.post(base + "/client/search", content=body, timeout=10)
         assert first.status_code == 402
-        challenge, _ = accept(first.content, "payment_challenge")
+        challenge = first.json()
         from broker.payment.l402 import decode_claims
         claims = decode_claims(challenge["macaroon"])
         assert counting.queries == 0

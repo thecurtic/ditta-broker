@@ -97,7 +97,7 @@ Every figure on this page gets a text alternative describing what it shows. Figu
 ## 6. Open questions
 
 - Repo names and URLs are settled: `ditta-protocol/ditta-spec` and `ditta-protocol/ditta-wire-py`. Still verify both resolve at publish time. (Checked 2026-10-10: both resolve; the vectors live in the spec repo's `vectors/` directory, not a `vectors.json`.)
-- The live panel needed one read-only broker endpoint, `GET /client/announcements` (the broker's own pubkey and endpoint, and the signed announcements it already holds). The web client re-verifies each signature before the page shows it.
+- The live panel needed one read-only broker endpoint, `GET /client/announcements` (the broker's own pubkey and endpoint, and the signed announcements it already holds). The broker verified each one when it arrived; the web client shows them unchanged and does no protocol work of its own.
 - Whether a public contact or discussion channel should be linked from 3.8.
 
 ## 7. Acceptance criteria
