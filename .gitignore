@@ -18,3 +18,7 @@ broker.yaml
 config.yaml
 node.yaml
 .env
+*.macaroon
+*.cert
+*.pem
+*.key
