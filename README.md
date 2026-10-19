@@ -24,6 +24,8 @@ This broker:
 
 Everything runs in free mode with no Lightning node at all.
 
+**Disclaimer:** AI tools were used to write the code in this repository.
+
 ## Quick start
 
 Python 3.10 or newer.
