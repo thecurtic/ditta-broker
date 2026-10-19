@@ -441,6 +441,11 @@ The MCP server is tested end to end over real sockets, including the paid
 search, invoice and redeem loop, and the front ends' import boundary is
 checked by test.
 
+Planned, not built: weighting routing with a small decision model once the
+network is large enough to measure it. The design is settled in
+[DECISIONS.md](DECISIONS.md) ("Future: a decision model may weight
+routing").
+
 ## License
 
 MIT; see [LICENSE](LICENSE). The vendored specification under `spec/` is

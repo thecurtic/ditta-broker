@@ -47,6 +47,43 @@ and macaroon, so `redeem` replays byte for byte with no server-side state.
 When enabled, the broker's `GET /` names its URL, so an agent that finds
 the broker directly finds the tools.
 
+## Future: a decision model may weight routing, never select
+
+(Oct 19 2026; deferred, not built.) A small decision model, one that reads
+a text and a fixed list of labels and returns only a probability per
+label, could judge which indexers a query is for. It is deferred because
+with a handful of indexers the term statistics already separate them and
+there is too little traffic to measure a gain. If it is built, the shape
+is settled:
+
+- **Weight, never select.** Each shortlisted indexer's routing score is
+  multiplied by `floor + (1 − floor) × min(1, n × P_i)`, with a gentle
+  floor (around 0.85), so a wrong guess lowers an indexer but never
+  removes it. The threshold, fanout and economics still decide who is
+  asked; the model is one more merit factor, and never reads a price.
+- **Labels come from what indexers announce,** built from their published
+  terms and corpus statistics, never from the naming model's generated
+  descriptions: naming is display only and stays out of routing. Nothing a
+  model writes takes part in routing; only probabilities do.
+- **A "none of these" choice.** Probabilities over the choices sum to 1, so
+  without it an off-topic query still crowns someone. When "none" wins,
+  weights go flat.
+- **A shortlist, not the network.** The model reweights the top 10 to 15
+  of the existing rank; one question over hundreds of choices does not
+  work.
+- **Cached per query, on a short budget.** The quote calls routing on
+  every keystroke and must agree with the invoice, so answers are cached
+  by query, and past roughly 300 ms (or with the model down) the route is
+  exactly today's.
+- **Shadow first.** Before it weights anything, the broker records the
+  model's distribution in the outcome log alongside who delivered and
+  what was clicked. It is switched on only if that shows it predicting
+  delivery better than the current rank, and stays only while it does.
+
+An informal probe against a live five-indexer network (Oct 19 2026) was
+fast (70 to 350 ms) but noisy: it named the right indexer for most
+queries, and each label style missed some the other caught.
+
 ## Every figure is ours: labeled diagrams of DITTA's own parts
 
 (Oct 10 2026.) The redesign first used stock figures from a third-party
